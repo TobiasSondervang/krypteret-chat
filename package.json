@@ -1,0 +1,6 @@
+{
+  "name": "krypteret-chat",
+  "version": "1.0.0",
+  "description": "Krypteret chat med login og mapper",
+  "main": "index.js"
+}
