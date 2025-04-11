@@ -19,7 +19,7 @@ button {
 button:hover {
     background-color: #0056b3;
 }
-#chatBox {
+#chatBox, #folderMessages {
     border: 1px solid #ccc;
     padding: 10px;
     max-height: 300px;
@@ -33,6 +33,14 @@ button:hover {
     padding: 10px;
     border-bottom: 1px solid #eee;
 }
-h1, h3 {
+#folderList {
+    margin: 10px auto;
+    max-width: 600px;
+}
+.folder {
+    display: inline-block;
+    margin: 5px;
+}
+h1, h3, h4 {
     color: #333;
 }
