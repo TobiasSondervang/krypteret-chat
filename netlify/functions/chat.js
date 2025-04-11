@@ -76,11 +76,15 @@ exports.handler = async (event) => {
             storage.folders[user] = [];
         }
         const folder = storage.folders[user].find(f => f.name === folderName);
-        if (folder && !folder.messages.includes(messageId)) {
+        if (!folder) {
+            storage.folders[user].push({ name: folderName, messages: [messageId] });
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: "Mappe oprettet og besked gemt" }) };
+        }
+        if (!folder.messages.includes(messageId)) {
             folder.messages.push(messageId);
             return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked gemt i mappe" }) };
         }
-        return { statusCode: 400, body: JSON.stringify({ success: false, message: "Mappe eller besked findes ikke" }) };
+        return { statusCode: 400, body: JSON.stringify({ success: false, message: "Besked er allerede i mappen" }) };
     }
 
     // Hent mapper
