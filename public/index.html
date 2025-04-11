@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+    <!-- Login sektion -->
     <div id="loginSection">
         <h1>Log ind eller Opret bruger</h1>
         <input type="email" id="email" placeholder="Email"><br>
@@ -16,6 +17,7 @@
         <p id="loginMessage"></p>
     </div>
 
+    <!-- Chat sektion -->
     <div id="chatSection" class="hidden">
         <h1>Privat Krypteret Chat</h1>
         <button onclick="signOut()">Log ud</button><br>
@@ -51,12 +53,14 @@
             })
             .then(response => response.json())
             .then(data => {
+                document.getElementById("loginMessage").textContent = data.message || "Uventet svar";
                 if (data.success) {
                     currentUser = email;
                     showChat();
-                } else {
-                    document.getElementById("loginMessage").textContent = data.message;
                 }
+            })
+            .catch(error => {
+                document.getElementById("loginMessage").textContent = "Fejl: Kunne ikke kontakte serveren - " + error.message;
             });
         }
 
@@ -69,12 +73,14 @@
             })
             .then(response => response.json())
             .then(data => {
+                document.getElementById("loginMessage").textContent = data.message || "Uventet svar";
                 if (data.success) {
                     currentUser = email;
                     showChat();
-                } else {
-                    document.getElementById("loginMessage").textContent = data.message;
                 }
+            })
+            .catch(error => {
+                document.getElementById("loginMessage").textContent = "Fejl: Kunne ikke kontakte serveren - " + error.message;
             });
         }
 
@@ -117,8 +123,11 @@
                 if (data.success) {
                     document.getElementById("message").value = "";
                     loadChats();
+                } else {
+                    alert(data.message || "Fejl ved afsendelse");
                 }
-            });
+            })
+            .catch(error => alert("Fejl: " + error.message));
         }
 
         function createFolder() {
@@ -137,8 +146,11 @@
                 if (data.success) {
                     document.getElementById("folderName").value = "";
                     loadFolders();
+                } else {
+                    alert(data.message || "Fejl ved oprettelse af mappe");
                 }
-            });
+            })
+            .catch(error => alert("Fejl: " + error.message));
         }
 
         function saveToFolder(messageId) {
@@ -156,8 +168,11 @@
             .then(data => {
                 if (data.success) {
                     alert("Besked gemt i mappe!");
+                } else {
+                    alert(data.message || "Fejl ved gemning");
                 }
-            });
+            })
+            .catch(error => alert("Fejl: " + error.message));
         }
 
         function loadFolders() {
@@ -175,7 +190,8 @@
                     option.textContent = folder.name;
                     folderSelect.appendChild(option);
                 });
-            });
+            })
+            .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
         }
 
         function loadChats() {
@@ -200,7 +216,8 @@
                     `;
                     chatBox.appendChild(messageDiv);
                 });
-            });
+            })
+            .catch(error => alert("Fejl ved hentning af chats: " + error.message));
         }
 
         function decryptMessage(encrypted, keyId) {
