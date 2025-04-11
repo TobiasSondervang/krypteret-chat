@@ -32,13 +32,14 @@
         <h3>Dine mapper</h3>
         <input type="text" id="folderName" placeholder="Ny mappe"><br>
         <button onclick="createFolder()">Opret Mappe</button><br>
-        <select id="folderSelect">
-            <option value="">Vælg mappe</option>
-        </select>
+        <div id="folderList"></div>
 
         <h3>Dine chats</h3>
         <button onclick="loadChats()">Opdater Chats</button>
         <div id="chatBox"></div>
+
+        <h3>Beskeder i valgt mappe</h3>
+        <div id="folderMessages"></div>
     </div>
 
     <script>
@@ -155,25 +156,40 @@
         }
 
         function saveToFolder(messageId) {
-            const folderName = document.getElementById("folderSelect").value;
-            if (!folderName) {
-                alert("Vælg en mappe!");
-                return;
-            }
-
             fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({ user: currentUser, folderName, messageId, action: 'saveToFolder' })
+                method: 'GET',
+                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolders' }
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    alert("Besked gemt i mappe!");
+                if (data.success && data.folders.length > 0) {
+                    let folderOptions = '<select id="folderChoice">';
+                    data.folders.forEach(folder => {
+                        folderOptions += `<option value="${folder.name}">${folder.name}</option>`;
+                    });
+                    folderOptions += '</select>';
+                    const choice = prompt("Vælg en mappe til at gemme beskeden i:", folderOptions);
+                    if (choice) {
+                        const selectedFolder = document.getElementById("folderChoice")?.value || choice;
+                        fetch('/.netlify/functions/chat', {
+                            method: 'POST',
+                            body: JSON.stringify({ user: currentUser, folderName: selectedFolder, messageId, action: 'saveToFolder' })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert("Besked gemt i mappe!");
+                            } else {
+                                alert(data.message || "Fejl ved gemning");
+                            }
+                        })
+                        .catch(error => alert("Fejl: " + error.message));
+                    }
                 } else {
-                    alert(data.message || "Fejl ved gemning");
+                    alert("Opret en mappe først!");
                 }
             })
-            .catch(error => alert("Fejl: " + error.message));
+            .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
         }
 
         function loadFolders() {
@@ -184,13 +200,13 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const folderSelect = document.getElementById("folderSelect");
-                    folderSelect.innerHTML = '<option value="">Vælg mappe</option>';
+                    const folderList = document.getElementById("folderList");
+                    folderList.innerHTML = "";
                     data.folders.forEach(folder => {
-                        const option = document.createElement("option");
-                        option.value = folder.name;
-                        option.textContent = folder.name;
-                        folderSelect.appendChild(option);
+                        const folderDiv = document.createElement("div");
+                        folderDiv.className = "folder";
+                        folderDiv.innerHTML = `<button onclick="loadFolderMessages('${folder.name}')">${folder.name}</button>`;
+                        folderList.appendChild(folderDiv);
                     });
                 } else {
                     alert(data.message || "Fejl ved hentning af mapper");
@@ -229,10 +245,39 @@
             .catch(error => alert("Fejl ved hentning af chats: " + error.message));
         }
 
+        function loadFolderMessages(folderName) {
+            fetch('/.netlify/functions/chat', {
+                method: 'GET',
+                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolderMessages', 'X-Folder-Name': folderName }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const folderMessages = document.getElementById("folderMessages");
+                    folderMessages.innerHTML = `<h4>Mappe: ${folderName}</h4>`;
+                    data.messages.forEach((msg, index) => {
+                        const messageDiv = document.createElement("div");
+                        messageDiv.className = "message";
+                        messageDiv.innerHTML = `
+                            <p>Fra: ${msg.sender}</p>
+                            <p>Krypteret: ${msg.encryptedMessage}</p>
+                            <input type="text" placeholder="Indtast nøgle" id="folder-key-${index}">
+                            <button onclick="decryptMessage('${msg.encryptedMessage}', 'folder-key-${index}')">Dekrypter</button>
+                            <p id="decrypted-folder-${index}"></p>
+                        `;
+                        folderMessages.appendChild(messageDiv);
+                    });
+                } else {
+                    alert(data.message || "Fejl ved hentning af mappens beskeder");
+                }
+            })
+            .catch(error => alert("Fejl ved hentning af mappens beskeder: " + error.message));
+        }
+
         function decryptMessage(encrypted, keyId) {
             const key = document.getElementById(keyId).value;
             const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
-            document.getElementById(`decrypted-${keyId.split('-')[1]}`).textContent = decrypted || "Fejl: Ugyldig nøgle";
+            document.getElementById(`decrypted-${keyId.replace('key-', '').replace('folder-key-', 'folder-')}`).textContent = decrypted || "Fejl: Ugyldig nøgle";
         }
     </script>
 </body>
