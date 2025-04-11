@@ -44,3 +44,22 @@ button:hover {
 h1, h3, h4 {
     color: #333;
 }
+.dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border: 2px solid #333;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+#folderButtons button {
+    margin: 5px;
+    background-color: #28a745;
+}
+#folderButtons button:hover {
+    background-color: #218838;
+}
