@@ -114,6 +114,10 @@
             document.getElementById("loginSection").classList.add("hidden");
             document.getElementById("chatSection").classList.remove("hidden");
             document.getElementById("userEmail").textContent = currentUser;
+            const lastRecipients = localStorage.getItem(`lastRecipients_${currentUser}`);
+            if (lastRecipients) {
+                document.getElementById("recipientEmail").value = lastRecipients;
+            }
             loadChats();
             loadFolders();
         }
@@ -142,8 +146,9 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    localStorage.setItem(`lastRecipients_${currentUser}`, recipientEmail);
                     document.getElementById("message").value = "";
-                    document.getElementById("recipientEmail").value = "";
+                    document.getElementById("recipientEmail").value = recipientEmail; // Bevar modtagere i feltet
                     loadChats();
                 } else {
                     alert(data.message || "Fejl ved afsendelse");
@@ -236,7 +241,8 @@
         function forwardMessage(messageId, encryptedMessage) {
             currentMessageId = messageId;
             currentEncryptedMessage = encryptedMessage;
-            document.getElementById("forwardRecipients").value = "";
+            const lastRecipients = localStorage.getItem(`lastRecipients_${currentUser}`);
+            document.getElementById("forwardRecipients").value = lastRecipients || "";
             document.getElementById("forwardDialog").classList.remove("hidden");
         }
 
@@ -259,6 +265,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    localStorage.setItem(`lastRecipients_${currentUser}`, recipients);
                     alert("Besked vidersendt!");
                     closeForwardDialog();
                 } else {
