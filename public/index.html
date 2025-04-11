@@ -42,8 +42,18 @@
         <div id="folderMessages"></div>
     </div>
 
+    <!-- Dialog til mappevalg -->
+    <div id="folderDialog" class="hidden dialog">
+        <h3>Vælg eller opret mappe</h3>
+        <input type="text" id="folderInput" placeholder="Skriv mappenavn"><br>
+        <div id="folderButtons"></div>
+        <button onclick="confirmFolder()">Gem i mappe</button>
+        <button onclick="closeDialog()">Annuller</button>
+    </div>
+
     <script>
         let currentUser = null;
+        let currentMessageId = null;
 
         function signUp() {
             const email = document.getElementById("email").value;
@@ -156,40 +166,61 @@
         }
 
         function saveToFolder(messageId) {
+            currentMessageId = messageId;
             fetch('/.netlify/functions/chat', {
                 method: 'GET',
                 headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolders' }
             })
             .then(response => response.json())
             .then(data => {
+                const dialog = document.getElementById("folderDialog");
+                const folderButtons = document.getElementById("folderButtons");
+                folderButtons.innerHTML = "";
                 if (data.success && data.folders.length > 0) {
-                    let folderOptions = '<select id="folderChoice">';
                     data.folders.forEach(folder => {
-                        folderOptions += `<option value="${folder.name}">${folder.name}</option>`;
+                        const btn = document.createElement("button");
+                        btn.textContent = folder.name;
+                        btn.onclick = () => selectFolder(folder.name);
+                        folderButtons.appendChild(btn);
                     });
-                    folderOptions += '</select>';
-                    const choice = prompt("Vælg en mappe til at gemme beskeden i:", folderOptions);
-                    if (choice) {
-                        const selectedFolder = document.getElementById("folderChoice")?.value || choice;
-                        fetch('/.netlify/functions/chat', {
-                            method: 'POST',
-                            body: JSON.stringify({ user: currentUser, folderName: selectedFolder, messageId, action: 'saveToFolder' })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert("Besked gemt i mappe!");
-                            } else {
-                                alert(data.message || "Fejl ved gemning");
-                            }
-                        })
-                        .catch(error => alert("Fejl: " + error.message));
-                    }
                 } else {
-                    alert("Opret en mappe først!");
+                    folderButtons.innerHTML = "<p>Ingen mapper endnu – skriv et nyt navn ovenfor.</p>";
                 }
+                document.getElementById("folderInput").value = "";
+                dialog.classList.remove("hidden");
             })
             .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
+        }
+
+        function selectFolder(folderName) {
+            document.getElementById("folderInput").value = folderName;
+        }
+
+        function confirmFolder() {
+            const folderName = document.getElementById("folderInput").value;
+            if (!folderName) {
+                alert("Indtast eller vælg et mappenavn!");
+                return;
+            }
+            fetch('/.netlify/functions/chat', {
+                method: 'POST',
+                body: JSON.stringify({ user: currentUser, folderName, messageId: currentMessageId, action: 'saveToFolder' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closeDialog();
+                } else {
+                    alert(data.message || "Fejl ved gemning");
+                }
+            })
+            .catch(error => alert("Fejl: " + error.message));
+        }
+
+        function closeDialog() {
+            document.getElementById("folderDialog").classList.add("hidden");
+            currentMessageId = null;
         }
 
         function loadFolders() {
