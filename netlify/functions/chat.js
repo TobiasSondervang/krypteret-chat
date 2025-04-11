@@ -93,5 +93,20 @@ exports.handler = async (event) => {
         return { statusCode: 200, body: JSON.stringify({ success: true, folders }) };
     }
 
+    // Hent beskeder fra en mappe
+    if (method === "GET" && headers["x-action"] === "getFolderMessages") {
+        const user = headers["x-user-email"];
+        const folderName = headers["x-folder-name"];
+        if (!user || !folderName) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger eller mappenavn mangler" }) };
+        }
+        const folder = storage.folders[user]?.find(f => f.name === folderName);
+        if (!folder) {
+            return { statusCode: 404, body: JSON.stringify({ success: false, message: "Mappe findes ikke" }) };
+        }
+        const folderMessages = storage.messages.filter(msg => folder.messages.includes(msg.id));
+        return { statusCode: 200, body: JSON.stringify({ success: true, messages: folderMessages }) };
+    }
+
     return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig anmodning" }) };
 };
