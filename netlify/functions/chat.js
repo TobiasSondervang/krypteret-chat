@@ -29,14 +29,17 @@ exports.handler = async (event) => {
         return { statusCode: 401, body: JSON.stringify({ success: false, message: "Forkert email eller adgangskode" }) };
     }
 
-    // Send besked
+    // Send besked (understøtter flere modtagere)
     if (method === "POST" && body.action === "sendMessage") {
-        const { sender, recipient, encryptedMessage } = body;
-        if (!sender || !recipient || !encryptedMessage) {
+        const { sender, recipients, encryptedMessage } = body;
+        if (!sender || !recipients || !encryptedMessage) {
             return { statusCode: 400, body: JSON.stringify({ success: false, message: "Udfyld alle felter" }) };
         }
+        const recipientList = Array.isArray(recipients) ? recipients : recipients.split(',').map(r => r.trim());
         const messageId = Date.now().toString();
-        storage.messages.push({ id: messageId, sender, recipient, encryptedMessage, timestamp: new Date().toISOString() });
+        recipientList.forEach(recipient => {
+            storage.messages.push({ id: messageId + recipient, sender, recipient, encryptedMessage, timestamp: new Date().toISOString() });
+        });
         return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked sendt" }) };
     }
 
@@ -110,6 +113,26 @@ exports.handler = async (event) => {
         }
         const folderMessages = storage.messages.filter(msg => folder.messages.includes(msg.id));
         return { statusCode: 200, body: JSON.stringify({ success: true, messages: folderMessages }) };
+    }
+
+    // Slet besked
+    if (method === "POST" && body.action === "deleteMessage") {
+        const { user, messageId } = body;
+        if (!user || !messageId) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger og besked-ID kræves" }) };
+        }
+        const messageIndex = storage.messages.findIndex(msg => msg.id === messageId && msg.recipient === user);
+        if (messageIndex === -1) {
+            return { statusCode: 404, body: JSON.stringify({ success: false, message: "Besked findes ikke" }) };
+        }
+        storage.messages.splice(messageIndex, 1);
+        if (storage.folders[user]) {
+            storage.folders[user].forEach(folder => {
+                const msgIndex = folder.messages.indexOf(messageId);
+                if (msgIndex !== -1) folder.messages.splice(msgIndex, 1);
+            });
+        }
+        return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked slettet" }) };
     }
 
     return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig anmodning" }) };
