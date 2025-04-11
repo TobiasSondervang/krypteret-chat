@@ -47,7 +47,7 @@
         function signUp() {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
-            fetch('/.netlify/functions/login', {
+            fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 body: JSON.stringify({ email, password, action: 'signup' })
             })
@@ -60,14 +60,14 @@
                 }
             })
             .catch(error => {
-                document.getElementById("loginMessage").textContent = "Fejl: Kunne ikke kontakte serveren - " + error.message;
+                document.getElementById("loginMessage").textContent = "Fejl: " + error.message;
             });
         }
 
         function signIn() {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
-            fetch('/.netlify/functions/login', {
+            fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 body: JSON.stringify({ email, password, action: 'signin' })
             })
@@ -80,7 +80,7 @@
                 }
             })
             .catch(error => {
-                document.getElementById("loginMessage").textContent = "Fejl: Kunne ikke kontakte serveren - " + error.message;
+                document.getElementById("loginMessage").textContent = "Fejl: " + error.message;
             });
         }
 
@@ -110,12 +110,13 @@
 
             const encrypted = CryptoJS.AES.encrypt(message, key).toString();
 
-            fetch('/.netlify/functions/sendMessage', {
+            fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 body: JSON.stringify({
                     sender: currentUser,
                     recipient: recipientEmail,
-                    encryptedMessage: encrypted
+                    encryptedMessage: encrypted,
+                    action: 'sendMessage'
                 })
             })
             .then(response => response.json())
@@ -137,9 +138,9 @@
                 return;
             }
 
-            fetch('/.netlify/functions/manageFolders', {
+            fetch('/.netlify/functions/chat', {
                 method: 'POST',
-                body: JSON.stringify({ user: currentUser, folderName, action: 'create' })
+                body: JSON.stringify({ user: currentUser, folderName, action: 'createFolder' })
             })
             .then(response => response.json())
             .then(data => {
@@ -160,9 +161,9 @@
                 return;
             }
 
-            fetch('/.netlify/functions/manageFolders', {
+            fetch('/.netlify/functions/chat', {
                 method: 'POST',
-                body: JSON.stringify({ user: currentUser, folderName, messageId, action: 'save' })
+                body: JSON.stringify({ user: currentUser, folderName, messageId, action: 'saveToFolder' })
             })
             .then(response => response.json())
             .then(data => {
@@ -176,46 +177,54 @@
         }
 
         function loadFolders() {
-            fetch('/.netlify/functions/manageFolders', {
+            fetch('/.netlify/functions/chat', {
                 method: 'GET',
-                headers: { 'X-User-Email': currentUser }
+                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolders' }
             })
             .then(response => response.json())
             .then(data => {
-                const folderSelect = document.getElementById("folderSelect");
-                folderSelect.innerHTML = '<option value="">Vælg mappe</option>';
-                data.folders.forEach(folder => {
-                    const option = document.createElement("option");
-                    option.value = folder.name;
-                    option.textContent = folder.name;
-                    folderSelect.appendChild(option);
-                });
+                if (data.success) {
+                    const folderSelect = document.getElementById("folderSelect");
+                    folderSelect.innerHTML = '<option value="">Vælg mappe</option>';
+                    data.folders.forEach(folder => {
+                        const option = document.createElement("option");
+                        option.value = folder.name;
+                        option.textContent = folder.name;
+                        folderSelect.appendChild(option);
+                    });
+                } else {
+                    alert(data.message || "Fejl ved hentning af mapper");
+                }
             })
             .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
         }
 
         function loadChats() {
-            fetch('/.netlify/functions/sendMessage', {
+            fetch('/.netlify/functions/chat', {
                 method: 'GET',
-                headers: { 'X-User-Email': currentUser }
+                headers: { 'X-User-Email': currentUser, 'X-Action': 'getMessages' }
             })
             .then(response => response.json())
             .then(data => {
-                const chatBox = document.getElementById("chatBox");
-                chatBox.innerHTML = "";
-                data.messages.forEach((msg, index) => {
-                    const messageDiv = document.createElement("div");
-                    messageDiv.className = "message";
-                    messageDiv.innerHTML = `
-                        <p>Fra: ${msg.sender}</p>
-                        <p>Krypteret: ${msg.encryptedMessage}</p>
-                        <input type="text" placeholder="Indtast nøgle" id="key-${index}">
-                        <button onclick="decryptMessage('${msg.encryptedMessage}', 'key-${index}')">Dekrypter</button>
-                        <button onclick="saveToFolder('${msg.id}')">Gem i mappe</button>
-                        <p id="decrypted-${index}"></p>
-                    `;
-                    chatBox.appendChild(messageDiv);
-                });
+                if (data.success) {
+                    const chatBox = document.getElementById("chatBox");
+                    chatBox.innerHTML = "";
+                    data.messages.forEach((msg, index) => {
+                        const messageDiv = document.createElement("div");
+                        messageDiv.className = "message";
+                        messageDiv.innerHTML = `
+                            <p>Fra: ${msg.sender}</p>
+                            <p>Krypteret: ${msg.encryptedMessage}</p>
+                            <input type="text" placeholder="Indtast nøgle" id="key-${index}">
+                            <button onclick="decryptMessage('${msg.encryptedMessage}', 'key-${index}')">Dekrypter</button>
+                            <button onclick="saveToFolder('${msg.id}')">Gem i mappe</button>
+                            <p id="decrypted-${index}"></p>
+                        `;
+                        chatBox.appendChild(messageDiv);
+                    });
+                } else {
+                    alert(data.message || "Fejl ved hentning af chats");
+                }
             })
             .catch(error => alert("Fejl ved hentning af chats: " + error.message));
         }
