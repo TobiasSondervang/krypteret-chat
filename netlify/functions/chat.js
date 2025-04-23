@@ -27,7 +27,7 @@ exports.handler = async (event) => {
         const messages = db.collection('messages');
         const folders = db.collection('folders');
 
-        // Login og brugeroprettelse
+        // Opret bruger
         if (method === "POST" && body.action === "signup") {
             const { email, password } = body;
             if (!email || !password) {
@@ -51,52 +51,44 @@ exports.handler = async (event) => {
             return { statusCode: 200, body: JSON.stringify({ success: true, message: "Bruger oprettet" }) };
         }
 
+        // Log ind
         if (method === "POST" && body.action === "signin") {
             const { email, password } = body;
             if (!email || !password) {
                 return { statusCode: 400, body: JSON.stringify({ success: false, message: "Email og adgangskode kræves" }) };
             }
-            if (!validateEmail(email)) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig email - skal indeholde @, bogstaver og et punktum" }) };
+
+            // Tjek bruger
+            const user = await users.findOne({ email, password });
+            if (!user) {
+                return { statusCode: 401, body: JSON.stringify({ success: false, message: "Forkert email eller adgangskode" }) };
             }
 
-            // Hent bruger
-            const user = await users.findOne({ email });
-            if (user && user.password === password) {
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: "Logget ind" }) };
-            }
-            return { statusCode: 401, body: JSON.stringify({ success: false, message: "Forkert email eller adgangskode" }) };
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: "Logget ind" }) };
         }
 
-        // Send besked (understøtter flere modtagere)
+        // Send besked
         if (method === "POST" && body.action === "sendMessage") {
             const { sender, recipients, encryptedMessage } = body;
             if (!sender || !recipients || !encryptedMessage) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Udfyld alle felter" }) };
+                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Afsender, modtagere og besked kræves" }) };
             }
-            const recipientList = Array.isArray(recipients) ? recipients : recipients.split(',').map(r => r.trim());
-            const messageId = Date.now().toString();
-            const timestamp = new Date().toISOString();
-            for (const recipient of recipientList) {
-                await messages.insertOne({
-                    id: messageId + recipient,
-                    sender,
-                    recipient,
-                    encryptedMessage,
-                    timestamp
-                });
-            }
-            return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked sendt" }) };
-        }
 
-        // Hent beskeder
-        if (method === "GET" && headers["x-action"] === "getMessages") {
-            const userEmail = headers["x-user-email"];
-            if (!userEmail) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger-email mangler" }) };
-            }
-            const userMessages = await messages.find({ recipient: userEmail }).toArray();
-            return { statusCode: 200, body: JSON.stringify({ success: true, messages: userMessages }) };
+            const recipientArray = recipients.split(',').map(email => email.trim());
+            const messageId = Date.now().toString(); // Simpel ID, brug UUID i produktion
+            const timestamp = new Date().toISOString();
+
+            // Gem besked for hver modtager
+            const messageDocs = recipientArray.map(recipient => ({
+                id: messageId,
+                sender,
+                recipient,
+                encryptedMessage,
+                timestamp
+            }));
+
+            await messages.insertMany(messageDocs);
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked sendt" }) };
         }
 
         // Opret mappe
@@ -117,52 +109,60 @@ exports.handler = async (event) => {
             return { statusCode: 200, body: JSON.stringify({ success: true, message: "Mappe oprettet" }) };
         }
 
-        // Gem besked i mappe
-        if (method === "POST" && body.action === "saveToFolder") {
-            const { user, folderName, messageId } = body;
-            if (!user || !folderName || !messageId) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Alle felter kræves" }) };
-            }
-
-            const folder = await folders.findOne({ user, name: folderName });
-            if (!folder) {
-                await folders.insertOne({ user, name: folderName, messages: [messageId] });
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: "Mappe oprettet og besked gemt" }) };
-            }
-
-            if (!folder.messages.includes(messageId)) {
-                await folders.updateOne(
-                    { user, name: folderName },
-                    { $push: { messages: messageId } }
-                );
-                return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked gemt i mappe" }) };
-            }
-            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Besked er allerede i mappen" }) };
-        }
-
         // Hent mapper
-        if (method === "GET" && headers["x-action"] === "getFolders") {
-            const user = headers["x-user-email"];
+        if (method === "GET" && headers['x-action'] === "getFolders") {
+            const user = headers['x-user-email'];
             if (!user) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger-email mangler" }) };
+                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger kræves" }) };
             }
+
             const userFolders = await folders.find({ user }).toArray();
             return { statusCode: 200, body: JSON.stringify({ success: true, folders: userFolders }) };
         }
 
         // Hent beskeder fra en mappe
-        if (method === "GET" && headers["x-action"] === "getFolderMessages") {
-            const user = headers["x-user-email"];
-            const folderName = headers["x-folder-name"];
+        if (method === "GET" && headers['x-action'] === "getFolderMessages") {
+            const user = headers['x-user-email'];
+            const folderName = headers['x-folder-name'];
             if (!user || !folderName) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger eller mappenavn mangler" }) };
+                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger og mappenavn kræves" }) };
             }
+
             const folder = await folders.findOne({ user, name: folderName });
             if (!folder) {
-                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Mappe findes ikke" }) };
+                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Mappe ikke fundet" }) };
             }
-            const folderMessages = await messages.find({ id: { $in: folder.messages } }).toArray();
+
+            const messageIds = folder.messages || [];
+            const folderMessages = await messages.find({ id: { $in: messageIds }, recipient: user }).toArray();
             return { statusCode: 200, body: JSON.stringify({ success: true, messages: folderMessages }) };
+        }
+
+        // Gem besked i mappe
+        if (method === "POST" && body.action === "saveToFolder") {
+            const { user, folderName, messageId } = body;
+            if (!user || !folderName || !messageId) {
+                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger, mappenavn og besked-ID kræves" }) };
+            }
+
+            const folder = await folders.findOne({ user, name: folderName });
+            if (!folder) {
+                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Mappe ikke fundet" }) };
+            }
+
+            // Tjek om besked findes
+            const message = await messages.findOne({ id: messageId, recipient: user });
+            if (!message) {
+                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Besked ikke fundet" }) };
+            }
+
+            // Tilføj besked til mappe
+            await folders.updateOne(
+                { user, name: folderName },
+                { $addToSet: { messages: messageId } }
+            );
+
+            return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked gemt i mappe" }) };
         }
 
         // Slet besked
@@ -171,21 +171,25 @@ exports.handler = async (event) => {
             if (!user || !messageId) {
                 return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger og besked-ID kræves" }) };
             }
-            const message = await messages.findOne({ id: messageId, recipient: user });
-            if (!message) {
-                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Besked findes ikke" }) };
-            }
-            await messages.deleteOne({ id: messageId });
 
-            // Fjern fra mapper
+            // Slet besked
+            const result = await messages.deleteOne({ id: messageId, recipient: user });
+            if (result.deletedCount === 0) {
+                return { statusCode: 404, body: JSON.stringify({ success: false, message: "Besked ikke fundet" }) };
+            }
+
+            // Fjern besked fra alle mapper
             await folders.updateMany(
                 { user, messages: messageId },
                 { $pull: { messages: messageId } }
             );
+
             return { statusCode: 200, body: JSON.stringify({ success: true, message: "Besked slettet" }) };
         }
 
-        return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig anmodning" }) };
+        // Hvis ingen handling matchede
+        return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig handling" }) };
+
     } catch (error) {
         return { statusCode: 500, body: JSON.stringify({ success: false, message: "Serverfejl: " + error.message }) };
     } finally {
