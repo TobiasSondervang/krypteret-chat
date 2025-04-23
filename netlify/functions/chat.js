@@ -1,5 +1,16 @@
 let storage = { users: {}, messages: [], folders: {} }; // Midlertidig hukommelse
 
+// Valideringshjælpere
+const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+};
+
+const validatePassword = (password) => {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    return passwordRegex.test(password);
+};
+
 exports.handler = async (event) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
@@ -10,6 +21,12 @@ exports.handler = async (event) => {
         const { email, password } = body;
         if (!email || !password) {
             return { statusCode: 400, body: JSON.stringify({ success: false, message: "Email og adgangskode kræves" }) };
+        }
+        if (!validateEmail(email)) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig email - skal indeholde @, bogstaver og et punktum" }) };
+        }
+        if (!validatePassword(password)) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Adgangskode skal være mindst 8 tegn og indeholde store bogstaver, små bogstaver og tal" }) };
         }
         if (storage.users[email]) {
             return { statusCode: 400, body: JSON.stringify({ success: false, message: "Bruger findes allerede" }) };
@@ -22,6 +39,9 @@ exports.handler = async (event) => {
         const { email, password } = body;
         if (!email || !password) {
             return { statusCode: 400, body: JSON.stringify({ success: false, message: "Email og adgangskode kræves" }) };
+        }
+        if (!validateEmail(email)) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, message: "Ugyldig email - skal indeholde @, bogstaver og et punktum" }) };
         }
         if (storage.users[email] && storage.users[email] === password) {
             return { statusCode: 200, body: JSON.stringify({ success: true, message: "Logget ind" }) };
