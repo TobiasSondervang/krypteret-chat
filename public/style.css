@@ -1,18 +1,213 @@
-/* Tilpasning af popup */
-#folderPopup .max-h-60 {
-    max-height: 15rem; /* Ca. 5 mapper før scroll */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
 }
 
-/* Tilpasning af beskeder */
-#folderMessages .shadow {
+body {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+/* Startskærm */
+#startScreen {
+    max-width: 400px;
+    margin: 50px auto;
+    text-align: center;
+}
+
+#startScreen h1 {
+    margin-bottom: 20px;
+    color: #2d3748;
+}
+
+#startScreen input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#startScreen button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    background-color: #2d3748;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#startScreen button:hover {
+    background-color: #4a5568;
+}
+
+.error {
+    color: red;
+    margin-top: 10px;
+}
+
+/* Hovedskærm */
+#mainScreen {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 200px;
+    background-color: #2d3748;
+    padding: 20px;
+    color: white;
+}
+
+.sidebar button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: none;
+    background-color: #4a5568;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.sidebar button:hover {
+    background-color: #718096;
+}
+
+#content {
+    flex-grow: 1;
+    padding: 20px;
+}
+
+#sendMessage, #folders {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+#sendMessage h2, #folders h2 {
+    margin-bottom: 20px;
+    color: #2d3748;
+}
+
+#sendMessage input, #sendMessage textarea, #folders input {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+#sendMessage textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+#sendMessage button, #folders button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #2d3748;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#sendMessage button:hover, #folders button:hover {
+    background-color: #4a5568;
+}
+
+/* Mapper */
+#folderList {
+    list-style: none;
+}
+
+#folderList li {
+    padding: 10px;
+    background-color: white;
+    margin: 5px 0;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#folderList li:hover {
+    background-color: #e2e8f0;
+}
+
+/* Folder popup */
+#folderPopup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+}
+
+.folder-list {
+    list-style: none;
+    max-height: 200px; /* Ca. 5 mapper før scroll */
+    overflow-y: auto;
+}
+
+.folder-list li {
+    padding: 10px;
+    margin: 5px 0;
+    background-color: #f7fafc;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.folder-list li:hover {
+    background-color: #e2e8f0;
+}
+
+#folderPopup button {
+    display: block;
+    margin: 10px auto;
+}
+
+/* Beskeder */
+.message {
+    background-color: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease-in-out;
 }
-#folderMessages .shadow:hover {
+
+.message:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Sikre sidelinje ser godt ud */
-.bg-gray-800 {
+.message p {
+    margin: 5px 0;
+}
+
+.message button {
+    margin: 5px;
+    padding: 5px 10px;
     background-color: #2d3748;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.message button:hover {
+    background-color: #4a5568;
+}
+
+/* Skjul elementer */
+.hidden {
+    display: none;
 }
