@@ -75,6 +75,18 @@
             return passwordRegex.test(password);
         }
 
+        // Formater tidspunkt til dansk format
+        function formatDanishDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString('da-DK', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(',', '');
+        }
+
         function signUp() {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
@@ -362,7 +374,7 @@
                         messageDiv.className = "message";
                         messageDiv.innerHTML = `
                             <p>Fra: ${msg.sender}</p>
-                            <p>Sendt: ${msg.timestamp}</p>
+                            <p>Sendt: ${formatDanishDate(msg.timestamp)}</p>
                             <p>Krypteret: ${msg.encryptedMessage}</p>
                             <input type="text" placeholder="Indtast nøgle" id="key-${index}">
                             <button onclick="decryptMessage('${msg.encryptedMessage}', 'key-${index}')">Dekrypter</button>
@@ -396,7 +408,7 @@
                         messageDiv.className = "message";
                         messageDiv.innerHTML = `
                             <p>Fra: ${msg.sender}</p>
-                            <p>Sendt: ${msg.timestamp}</p>
+                            <p>Sendt: ${formatDanishDate(msg.timestamp)}</p>
                             <p>Krypteret: ${msg.encryptedMessage}</p>
                             <input type="text" placeholder="Indtast nøgle" id="folder-key-${index}">
                             <button onclick="decryptMessage('${msg.encryptedMessage}', 'folder-key-${index}')">Dekrypter</button>
