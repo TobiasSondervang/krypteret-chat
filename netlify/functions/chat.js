@@ -3,7 +3,6 @@ const { MongoClient } = require('mongodb');
 exports.handler = async (event, context) => {
     const uri = process.env.MONGODB_URI;
     const client = new MongoClient(uri);
-
     try {
         await client.connect();
         const db = client.db('chatdb');
@@ -19,7 +18,7 @@ exports.handler = async (event, context) => {
                 if (existingUser) {
                     return {
                         statusCode: 400,
-                        body: JSON.stringify({ success: false, message: 'Email allerede i brug' })
+                        body: JSON.stringify({ success: false, message: 'Bruger findes allerede' })
                     };
                 }
                 await users.insertOne({ email, password });
@@ -33,7 +32,7 @@ exports.handler = async (event, context) => {
                 const user = await users.findOne({ email, password });
                 if (!user) {
                     return {
-                        statusCode: 401,
+                        statusCode: 400,
                         body: JSON.stringify({ success: false, message: 'Forkert email eller adgangskode' })
                     };
                 }
@@ -44,10 +43,9 @@ exports.handler = async (event, context) => {
             }
 
             if (action === 'sendMessage') {
-                const recipientList = recipients.split(',').map(r => r.trim());
                 const message = {
                     sender,
-                    recipients: recipientList,
+                    recipients: recipients.split(',').map(r => r.trim()),
                     encryptedMessage,
                     timestamp: new Date()
                 };
@@ -59,22 +57,18 @@ exports.handler = async (event, context) => {
             }
         }
 
-        if (event.httpMethod === 'GET') {
-            const action = event.headers['x-action'];
+        if (event.httpMethod === 'GET' && event.headers['x-action'] === 'getMessages') {
             const userEmail = event.headers['x-user-email'];
-
-            if (action === 'getMessages') {
-                const userMessages = await messages.find({
-                    $or: [
-                        { sender: userEmail },
-                        { recipients: userEmail }
-                    ]
-                }).toArray();
-                return {
-                    statusCode: 200,
-                    body: JSON.stringify({ success: true, messages: userMessages })
-                };
-            }
+            const userMessages = await messages.find({
+                $or: [
+                    { sender: userEmail },
+                    { recipients: userEmail }
+                ]
+            }).toArray();
+            return {
+                statusCode: 200,
+                body: JSON.stringify({ success: true, messages: userMessages })
+            };
         }
 
         return {
