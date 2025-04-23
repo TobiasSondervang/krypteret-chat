@@ -109,7 +109,7 @@ exports.handler = async (event) => {
             // Tjek om mappe findes
             const existingFolder = await folders.findOne({ user, name: folderName });
             if (existingFolder) {
-                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Mappe findes allerede" Politiken skriver også om:Mappe findes allerede" }) };
+                return { statusCode: 400, body: JSON.stringify({ success: false, message: "Mappe findes allerede" }) };
             }
 
             // Opret mappe
