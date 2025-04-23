@@ -1,68 +1,18 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    text-align: center;
-    background-color: #f4f4f4;
+/* Tilpasning af popup */
+#folderPopup .max-h-60 {
+    max-height: 15rem; /* Ca. 5 mapper før scroll */
 }
-.hidden { display: none; }
-input, textarea, select, button {
-    margin: 10px;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+
+/* Tilpasning af beskeder */
+#folderMessages .shadow {
+    transition: all 0.2s ease-in-out;
 }
-button {
-    background-color: #007bff;
-    color: white;
-    cursor: pointer;
+#folderMessages .shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
-button:hover {
-    background-color: #0056b3;
-}
-#chatBox, #folderMessages {
-    border: 1px solid #ccc;
-    padding: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    background-color: white;
-    margin: 20px auto;
-    max-width: 600px;
-}
-.message {
-    margin: 5px;
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-}
-#folderList {
-    margin: 10px auto;
-    max-width: 600px;
-}
-.folder {
-    display: inline-block;
-    margin: 5px;
-}
-h1, h3, h4 {
-    color: #333;
-}
-.dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border: 2px solid #333;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    z-index: 1000;
-}
-#folderButtons button {
-    margin: 5px;
-    background-color: #28a745;
-}
-#folderButtons button:hover {
-    background-color: #218838;
-}
-#forwardDialog input {
-    width: 80%;
+
+/* Sikre sidelinje ser godt ud */
+.bg-gray-800 {
+    background-color: #2d3748;
 }
