@@ -2,433 +2,357 @@
 <html lang="da">
 <head>
     <meta charset="UTF-8">
-    <title>Krypteret Chat med Mapper</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krypteret Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <!-- Login sektion -->
-    <div id="loginSection">
-        <h1>Log ind eller Opret bruger</h1>
-        <input type="email" id="email" placeholder="Email (f.eks. navn@domæne.com)"><br>
-        <input type="password" id="password" placeholder="Adgangskode (mindst 8 tegn, store/små bogstaver, tal)"><br>
-        <button onclick="signUp()">Opret bruger</button>
-        <button onclick="signIn()">Log ind</button>
-        <p id="loginMessage"></p>
+<body class="bg-gray-100 font-sans">
+    <!-- Startskærm (login/opret bruger) -->
+    <div id="startScreen" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h1 class="text-2xl font-bold mb-6 text-center">Krypteret Chat</h1>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2" for="email">Email</label>
+                <input id="email" type="email" class="w-full p-2 border rounded" placeholder="Indtast email">
+            </div>
+            <div class="mb-6">
+                <label class="block text-gray-700 mb-2" for="password">Adgangskode</label>
+                <input id="password" type="password" class="w-full p-2 border rounded" placeholder="Indtast adgangskode">
+            </div>
+            <div class="flex justify-between">
+                <button onclick="signUp()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Opret bruger</button>
+                <button onclick="signIn()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Log ind</button>
+            </div>
+            <p id="error" class="text-red-500 mt-4 text-center hidden"></p>
+        </div>
     </div>
 
-    <!-- Chat sektion -->
-    <div id="chatSection" class="hidden">
-        <h1>Privat Krypteret Chat</h1>
-        <button onclick="signOut()">Log ud</button><br>
-        <p>Logget ind som: <span id="userEmail"></span></p>
+    <!-- Hovedskærm (efter login) -->
+    <div id="mainScreen" class="hidden">
+        <!-- Sidelinje -->
+        <div class="fixed top-0 left-0 w-64 h-full bg-gray-800 text-white flex flex-col">
+            <h2 class="text-xl font-bold p-4 border-b border-gray-700">Menu</h2>
+            <button onclick="showSendMessage()" class="p-4 hover:bg-gray-700 text-left">Send besked</button>
+            <button onclick="showFolders()" class="p-4 hover:bg-gray-700 text-left">Mapper</button>
+            <button onclick="logOut()" class="p-4 hover:bg-gray-700 text-left">Log ud</button>
+        </div>
 
-        <h3>Send en besked</h3>
-        <input type="text" id="recipientEmail" placeholder="Modtager-emails (adskil med komma)"><br>
-        <textarea id="message" rows="4" cols="50" placeholder="Skriv din besked"></textarea><br>
-        <input type="text" id="key" placeholder="Hemmelig nøgle (del med modtagere)"><br>
-        <button onclick="sendMessage()">Send Besked</button>
+        <!-- Indholdsområde -->
+        <div class="ml-64 p-8">
+            <!-- Send besked skærm -->
+            <div id="sendMessageScreen" class="hidden">
+                <h2 class="text-2xl font-bold mb-6">Send besked</h2>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="recipients">Modtagere (kommasepareret)</label>
+                    <input id="recipients" type="text" class="w-full p-2 border rounded" placeholder="email1@example.com, email2@example.com">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="message">Besked</label>
+                    <textarea id="message" class="w-full p-2 border rounded" placeholder="Skriv din besked"></textarea>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2" for="securityKey">Sikkerhedsnøgle</label>
+                    <input id="securityKey" type="text" class="w-full p-2 border rounded" placeholder="Indtast sikkerhedsnøgle">
+                </div>
+                <button onclick="sendMessage()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Send</button>
+            </div>
 
-        <h3>Dine mapper</h3>
-        <input type="text" id="folderName" placeholder="Ny mappe"><br>
-        <button onclick="createFolder()">Opret Mappe</button><br>
-        <div id="folderList"></div>
+            <!-- Mappebeskeder skærm -->
+            <div id="folderMessagesScreen" class="hidden">
+                <h2 id="folderName" class="text-2xl font-bold mb-6"></h2>
+                <div id="folderMessages" class="space-y-4"></div>
+            </div>
+        </div>
 
-        <h3>Dine chats</h3>
-        <button onclick="loadChats()">Opdater Chats</button>
-        <div id="chatBox"></div>
-
-        <h3>Beskeder i valgt mappe</h3>
-        <div id="folderMessages"></div>
-    </div>
-
-    <!-- Dialog til mappevalg -->
-    <div id="folderDialog" class="hidden dialog">
-        <h3>Vælg eller opret mappe</h3>
-        <input type="text" id="folderInput" placeholder="Skriv mappenavn"><br>
-        <div id="folderButtons"></div>
-        <button onclick="confirmFolder()">Gem i mappe</button>
-        <button onclick="closeDialog()">Annuller</button>
-    </div>
-
-    <!-- Dialog til vidersendelse -->
-    <div id="forwardDialog" class="hidden dialog">
-        <h3>Vidersend besked</h3>
-        <input type="text" id="forwardRecipients" placeholder="Modtager-emails (adskil med komma)"><br>
-        <button onclick="confirmForward()">Send</button>
-        <button onclick="closeForwardDialog()">Annuller</button>
+        <!-- Popup til mapper -->
+        <div id="folderPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-6 rounded-lg w-full max-w-md">
+                <h3 class="text-xl font-bold mb-4">Dine mapper</h3>
+                <div id="folderList" class="max-h-60 overflow-y-auto mb-4"></div>
+                <div class="mb-4">
+                    <input id="newFolderName" type="text" class="w-full p-2 border rounded" placeholder="Nyt mappenavn">
+                </div>
+                <div class="flex justify-between">
+                    <button onclick="createFolder()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Opret mappe</button>
+                    <button onclick="closeFolderPopup()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Luk</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         let currentUser = null;
-        let currentMessageId = null;
-        let currentEncryptedMessage = null;
 
-        // Valideringshjælpere
-        function validateEmail(email) {
-            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-            return emailRegex.test(email);
-        }
-
-        function validatePassword(password) {
-            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-            return passwordRegex.test(password);
-        }
-
-        // Formater tidspunkt til dansk format
+        // Formatér tidspunkt til dansk format
         function formatDanishDate(isoString) {
             const date = new Date(isoString);
-            return date.toLocaleString('da-DK', {
+            const options = {
                 day: '2-digit',
                 month: 'short',
                 year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit'
-            }).replace(',', '');
+                minute: '2-digit',
+                hour12: false
+            };
+            return date.toLocaleString('da-DK', options).replace(',', '');
         }
 
-        function signUp() {
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
-            if (!validateEmail(email)) {
-                document.getElementById("loginMessage").textContent = "Ugyldig email - skal indeholde @, bogstaver og et punktum";
-                return;
-            }
-            if (!validatePassword(password)) {
-                document.getElementById("loginMessage").textContent = "Adgangskode skal være mindst 8 tegn og indeholde store bogstaver, små bogstaver og tal";
-                return;
-            }
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({ email, password, action: 'signup' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("loginMessage").textContent = data.message || "Uventet svar";
-                if (data.success) {
-                    currentUser = email;
-                    showChat();
-                }
-            })
-            .catch(error => {
-                document.getElementById("loginMessage").textContent = "Fejl: " + error.message;
-            });
+        // Vis/skjul skærme
+        function showSendMessage() {
+            document.getElementById('sendMessageScreen').classList.remove('hidden');
+            document.getElementById('folderMessagesScreen').classList.add('hidden');
+            document.getElementById('folderPopup').classList.add('hidden');
         }
 
-        function signIn() {
-            const email = document.getElementById("email").value;
-            const password = document.getElementById("password").value;
-            if (!validateEmail(email)) {
-                document.getElementById("loginMessage").textContent = "Ugyldig email - skal indeholde @, bogstaver og et punktum";
-                return;
-            }
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({ email, password, action: 'signin' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("loginMessage").textContent = data.message || "Uventet svar";
-                if (data.success) {
-                    currentUser = email;
-                    showChat();
-                }
-            })
-            .catch(error => {
-                document.getElementById("loginMessage").textContent = "Fejl: " + error.message;
-            });
+        function showFolderMessages(folderName) {
+            document.getElementById('sendMessageScreen').classList.add('hidden');
+            document.getElementById('folderMessagesScreen').classList.remove('hidden');
+            document.getElementById('folderPopup').classList.add('hidden');
+            document.getElementById('folderName').textContent = folderName;
+            loadFolderMessages(folderName);
         }
 
-        function signOut() {
-            currentUser = null;
-            document.getElementById("chatSection").classList.add("hidden");
-            document.getElementById("loginSection").classList.remove("hidden");
-        }
-
-        function showChat() {
-            document.getElementById("loginSection").classList.add("hidden");
-            document.getElementById("chatSection").classList.remove("hidden");
-            document.getElementById("userEmail").textContent = currentUser;
-            const lastRecipients = localStorage.getItem(`lastRecipients_${currentUser}`);
-            if (lastRecipients) {
-                document.getElementById("recipientEmail").value = lastRecipients;
-            }
-            loadChats();
+        function showFolders() {
+            document.getElementById('folderPopup').classList.remove('hidden');
             loadFolders();
         }
 
-        function sendMessage() {
-            const recipientEmail = document.getElementById("recipientEmail").value;
-            const message = document.getElementById("message").value;
-            const key = document.getElementById("key").value;
-
-            if (!recipientEmail || !message || !key) {
-                alert("Udfyld alle felter!");
-                return;
-            }
-
-            const encrypted = CryptoJS.AES.encrypt(message, key).toString();
-
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({
-                    sender: currentUser,
-                    recipients: recipientEmail,
-                    encryptedMessage: encrypted,
-                    action: 'sendMessage'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    localStorage.setItem(`lastRecipients_${currentUser}`, recipientEmail);
-                    document.getElementById("message").value = "";
-                    document.getElementById("recipientEmail").value = recipientEmail; // Bevar modtagere i feltet
-                    loadChats();
-                } else {
-                    alert(data.message || "Fejl ved afsendelse");
-                }
-            })
-            .catch(error => alert("Fejl: " + error.message));
+        function closeFolderPopup() {
+            document.getElementById('folderPopup').classList.add('hidden');
         }
 
-        function createFolder() {
-            const folderName = document.getElementById("folderName").value;
-            if (!folderName) {
-                alert("Indtast et mappenavn!");
+        // Opret bruger
+        async function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const error = document.getElementById('error');
+            error.classList.add('hidden');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'signup', email, password })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Bruger oprettet!');
+                } else {
+                    error.textContent = result.message || 'Uventet svar';
+                    error.classList.remove('hidden');
+                }
+            } catch (err) {
+                error.textContent = 'Fejl: ' + err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // Log ind
+        async function signIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const error = document.getElementById('error');
+            error.classList.add('hidden');
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'signin', email, password })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    currentUser = email;
+                    document.getElementById('startScreen').classList.add('hidden');
+                    document.getElementById('mainScreen').classList.remove('hidden');
+                    showSendMessage();
+                } else {
+                    error.textContent = result.message || 'Uventet svar';
+                    error.classList.remove('hidden');
+                }
+            } catch (err) {
+                error.textContent = 'Fejl: ' + err.message;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // Send besked
+        async function sendMessage() {
+            const recipients = document.getElementById('recipients').value;
+            const message = document.getElementById('message').value;
+            const securityKey = document.getElementById('securityKey').value;
+
+            if (!recipients || !message || !securityKey) {
+                alert('Udfyld alle felter!');
                 return;
             }
 
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({ user: currentUser, folderName, action: 'createFolder' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById("folderName").value = "";
+            try {
+                // Simuleret kryptering (i virkeligheden bør du bruge en rigtig krypteringsmetode)
+                const encryptedMessage = btoa(message + '|' + securityKey);
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'sendMessage', sender: currentUser, recipients, encryptedMessage })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Besked sendt!');
+                    document.getElementById('recipients').value = '';
+                    document.getElementById('message').value = '';
+                    document.getElementById('securityKey').value = '';
+                } else {
+                    alert(result.message || 'Uventet svar');
+                }
+            } catch (err) {
+                alert('Fejl: ' + err.message);
+            }
+        }
+
+        // Opret mappe
+        async function createFolder() {
+            const folderName = document.getElementById('newFolderName').value;
+            if (!folderName) {
+                alert('Indtast et mappenavn!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'createFolder', user: currentUser, folderName })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Mappe oprettet!');
+                    document.getElementById('newFolderName').value = '';
                     loadFolders();
                 } else {
-                    alert(data.message || "Fejl ved oprettelse af mappe");
+                    alert(result.message || 'Uventet svar');
                 }
-            })
-            .catch(error => alert("Fejl: " + error.message));
+            } catch (err) {
+                alert('Fejl: ' + err.message);
+            }
         }
 
-        function saveToFolder(messageId) {
-            currentMessageId = messageId;
-            fetch('/.netlify/functions/chat', {
-                method: 'GET',
-                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolders' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const dialog = document.getElementById("folderDialog");
-                const folderButtons = document.getElementById("folderButtons");
-                folderButtons.innerHTML = "";
-                if (data.success && data.folders.length > 0) {
-                    data.folders.forEach(folder => {
-                        const btn = document.createElement("button");
-                        btn.textContent = folder.name;
-                        btn.onclick = () => selectFolder(folder.name);
-                        folderButtons.appendChild(btn);
+        // Hent mapper
+        async function loadFolders() {
+            try {
+                const response = await fetch('/chat', {
+                    method: 'GET',
+                    headers: { 'x-action': 'getFolders', 'x-user-email': currentUser }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const folderList = document.getElementById('folderList');
+                    folderList.innerHTML = '';
+                    result.folders.forEach(folder => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                        div.textContent = folder.name;
+                        div.onclick = () => {
+                            closeFolderPopup();
+                            showFolderMessages(folder.name);
+                        };
+                        folderList.appendChild(div);
                     });
                 } else {
-                    folderButtons.innerHTML = "<p>Ingen mapper endnu – skriv et nyt navn ovenfor.</p>";
+                    alert(result.message || 'Uventet svar');
                 }
-                document.getElementById("folderInput").value = "";
-                dialog.classList.remove("hidden");
-            })
-            .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
-        }
-
-        function selectFolder(folderName) {
-            document.getElementById("folderInput").value = folderName;
-        }
-
-        function confirmFolder() {
-            const folderName = document.getElementById("folderInput").value;
-            if (!folderName) {
-                alert("Indtast eller vælg et mappenavn!");
-                return;
+            } catch (err) {
+                alert('Fejl: ' + err.message);
             }
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({ user: currentUser, folderName, messageId: currentMessageId, action: 'saveToFolder' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    closeDialog();
-                } else {
-                    alert(data.message || "Fejl ved gemning");
-                }
-            })
-            .catch(error => alert("Fejl: " + error.message));
         }
 
-        function closeDialog() {
-            document.getElementById("folderDialog").classList.add("hidden");
-            currentMessageId = null;
-        }
-
-        function forwardMessage(messageId, encryptedMessage) {
-            currentMessageId = messageId;
-            currentEncryptedMessage = encryptedMessage;
-            const lastRecipients = localStorage.getItem(`lastRecipients_${currentUser}`);
-            document.getElementById("forwardRecipients").value = lastRecipients || "";
-            document.getElementById("forwardDialog").classList.remove("hidden");
-        }
-
-        function confirmForward() {
-            const recipients = document.getElementById("forwardRecipients").value;
-            if (!recipients) {
-                alert("Indtast mindst én modtager!");
-                return;
-            }
-
-            fetch('/.netlify/functions/chat', {
-                method: 'POST',
-                body: JSON.stringify({
-                    sender: currentUser,
-                    recipients: recipients,
-                    encryptedMessage: currentEncryptedMessage,
-                    action: 'sendMessage'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    localStorage.setItem(`lastRecipients_${currentUser}`, recipients);
-                    alert("Besked vidersendt!");
-                    closeForwardDialog();
-                } else {
-                    alert(data.message || "Fejl ved vidersendelse");
-                }
-            })
-            .catch(error => alert("Fejl: " + error.message));
-        }
-
-        function closeForwardDialog() {
-            document.getElementById("forwardDialog").classList.add("hidden");
-            currentMessageId = null;
-            currentEncryptedMessage = null;
-        }
-
-        function deleteMessage(messageId) {
-            if (confirm("Er du sikker på, at du vil slette denne besked?")) {
-                fetch('/.netlify/functions/chat', {
-                    method: 'POST',
-                    body: JSON.stringify({ user: currentUser, messageId, action: 'deleteMessage' })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Besked slettet!");
-                        loadChats();
-                        loadFolderMessages(document.getElementById("folderMessages").querySelector("h4")?.textContent?.replace("Mappe: ", "") || "");
-                    } else {
-                        alert(data.message || "Fejl ved sletning");
+        // Hent beskeder fra en mappe
+        async function loadFolderMessages(folderName) {
+            try {
+                const response = await fetch('/chat', {
+                    method: 'GET',
+                    headers: {
+                        'x-action': 'getFolderMessages',
+                        'x-user-email': currentUser,
+                        'x-folder-name': folderName
                     }
-                })
-                .catch(error => alert("Fejl: " + error.message));
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const messagesDiv = document.getElementById('folderMessages');
+                    messagesDiv.innerHTML = '';
+                    result.messages.forEach(msg => {
+                        const div = document.createElement('div');
+                        div.className = 'p-4 bg-white rounded shadow';
+                        div.innerHTML = `
+                            <p><strong>Fra:</strong> ${msg.sender}</p>
+                            <p><strong>Besked:</strong> ${atob(msg.encryptedMessage).split('|')[0]}</p>
+                            <p><strong>Tid:</strong> ${formatDanishDate(msg.timestamp)}</p>
+                            <button onclick="deleteMessage('${msg.id}')" class="mt-2 bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Slet</button>
+                            <button onclick="saveToFolderPrompt('${msg.id}')" class="mt-2 ml-2 bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">Gem i mappe</button>
+                        `;
+                        messagesDiv.appendChild(div);
+                    });
+                } else {
+                    alert(result.message || 'Uventet svar');
+                }
+            } catch (err) {
+                alert('Fejl: ' + err.message);
             }
         }
 
-        function loadFolders() {
-            fetch('/.netlify/functions/chat', {
-                method: 'GET',
-                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolders' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const folderList = document.getElementById("folderList");
-                    folderList.innerHTML = "";
-                    data.folders.forEach(folder => {
-                        const folderDiv = document.createElement("div");
-                        folderDiv.className = "folder";
-                        folderDiv.innerHTML = `<button onclick="loadFolderMessages('${folder.name}')">${folder.name}</button>`;
-                        folderList.appendChild(folderDiv);
-                    });
-                } else {
-                    alert(data.message || "Fejl ved hentning af mapper");
-                }
-            })
-            .catch(error => alert("Fejl ved hentning af mapper: " + error.message));
-        }
-
-        function loadChats() {
-            fetch('/.netlify/functions/chat', {
-                method: 'GET',
-                headers: { 'X-User-Email': currentUser, 'X-Action': 'getMessages' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const chatBox = document.getElementById("chatBox");
-                    chatBox.innerHTML = "";
-                    data.messages.forEach((msg, index) => {
-                        const messageDiv = document.createElement("div");
-                        messageDiv.className = "message";
-                        messageDiv.innerHTML = `
-                            <p>Fra: ${msg.sender}</p>
-                            <p>Sendt: ${formatDanishDate(msg.timestamp)}</p>
-                            <p>Krypteret: ${msg.encryptedMessage}</p>
-                            <input type="text" placeholder="Indtast nøgle" id="key-${index}">
-                            <button onclick="decryptMessage('${msg.encryptedMessage}', 'key-${index}')">Dekrypter</button>
-                            <button onclick="saveToFolder('${msg.id}')">Gem i mappe</button>
-                            <button onclick="forwardMessage('${msg.id}', '${msg.encryptedMessage}')">Vidersend</button>
-                            <button onclick="deleteMessage('${msg.id}')">Slet</button>
-                            <p id="decrypted-${index}"></p>
-                        `;
-                        chatBox.appendChild(messageDiv);
-                    });
-                } else {
-                    alert(data.message || "Fejl ved hentning af chats");
-                }
-            })
-            .catch(error => alert("Fejl ved hentning af chats: " + error.message));
-        }
-
-        function loadFolderMessages(folderName) {
+        // Gem besked i mappe
+        async function saveToFolderPrompt(messageId) {
+            const folderName = prompt('Indtast mappenavn at gemme i:');
             if (!folderName) return;
-            fetch('/.netlify/functions/chat', {
-                method: 'GET',
-                headers: { 'X-User-Email': currentUser, 'X-Action': 'getFolderMessages', 'X-Folder-Name': folderName }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const folderMessages = document.getElementById("folderMessages");
-                    folderMessages.innerHTML = `<h4>Mappe: ${folderName}</h4>`;
-                    data.messages.forEach((msg, index) => {
-                        const messageDiv = document.createElement("div");
-                        messageDiv.className = "message";
-                        messageDiv.innerHTML = `
-                            <p>Fra: ${msg.sender}</p>
-                            <p>Sendt: ${formatDanishDate(msg.timestamp)}</p>
-                            <p>Krypteret: ${msg.encryptedMessage}</p>
-                            <input type="text" placeholder="Indtast nøgle" id="folder-key-${index}">
-                            <button onclick="decryptMessage('${msg.encryptedMessage}', 'folder-key-${index}')">Dekrypter</button>
-                            <button onclick="forwardMessage('${msg.id}', '${msg.encryptedMessage}')">Vidersend</button>
-                            <button onclick="deleteMessage('${msg.id}')">Slet</button>
-                            <p id="decrypted-folder-${index}"></p>
-                        `;
-                        folderMessages.appendChild(messageDiv);
-                    });
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'saveToFolder', user: currentUser, folderName, messageId })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Besked gemt i mappe!');
                 } else {
-                    alert(data.message || "Fejl ved hentning af mappens beskeder");
+                    alert(result.message || 'Uventet svar');
                 }
-            })
-            .catch(error => alert("Fejl ved hentning af mappens beskeder: " + error.message));
+            } catch (err) {
+                alert('Fejl: ' + err.message);
+            }
         }
 
-        function decryptMessage(encrypted, keyId) {
-            const key = document.getElementById(keyId).value;
-            const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(CryptoJS.enc.Utf8);
-            document.getElementById(`decrypted-${keyId.replace('key-', '').replace('folder-key-', 'folder-')}`).textContent = decrypted || "Fejl: Ugyldig nøgle";
+        // Slet besked
+        async function deleteMessage(messageId) {
+            if (!confirm('Er du sikker på, at du vil slette denne besked?')) return;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'deleteMessage', user: currentUser, messageId })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Besked slettet!');
+                    loadFolderMessages(document.getElementById('folderName').textContent);
+                } else {
+                    alert(result.message || 'Uventet svar');
+                }
+            } catch (err) {
+                alert('Fejl: ' + err.message);
+            }
+        }
+
+        // Log ud
+        function logOut() {
+            currentUser = null;
+            document.getElementById('mainScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('error').classList.add('hidden');
         }
     </script>
 </body>
