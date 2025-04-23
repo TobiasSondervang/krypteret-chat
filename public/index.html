@@ -17,33 +17,14 @@
         <p id="error" class="error hidden"></p>
     </div>
 
-    <!-- Hovedskærm med sidelinje -->
+    <!-- Hovedskærm -->
     <div id="mainScreen" class="hidden">
-        <div class="sidebar">
-            <button onclick="showSendMessage()">Send besked</button>
-            <button onclick="showFolders()">Mapper</button>
-            <button onclick="signOut()">Log ud</button>
-        </div>
-        <div id="content">
-            <div id="sendMessage" class="hidden">
-                <h2>Send besked</h2>
-                <input type="text" id="recipients" placeholder="Modtagere (kommasepareret)">
-                <textarea id="message" placeholder="Skriv besked"></textarea>
-                <button onclick="sendMessage()">Send</button>
-            </div>
-            <div id="folders" class="hidden">
-                <h2>Mine mapper</h2>
-                <input type="text" id="newFolderName" placeholder="Nyt mappenavn">
-                <button onclick="createFolder()">Opret mappe</button>
-                <ul id="folderList"></ul>
-                <div id="folderPopup" class="hidden">
-                    <h3>Gem i mappe</h3>
-                    <ul id="folderPopupList" class="folder-list"></ul>
-                    <button onclick="closeFolderPopup()">Luk</button>
-                </div>
-                <div id="folderMessages"></div>
-            </div>
-        </div>
+        <h2>Send besked</h2>
+        <input type="text" id="recipients" placeholder="Modtagere (kommasepareret)">
+        <textarea id="message" placeholder="Skriv besked"></textarea>
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="signOut()">Log ud</button>
+        <div id="messages"></div>
     </div>
 
     <script>
@@ -67,17 +48,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'signup', email, password })
                 });
-                const text = await response.text(); // Hent rå tekst
-                console.log('Raw response:', text, 'Status:', response.status); // Debug
-                try {
-                    const result = JSON.parse(text);
-                    if (result.success) {
-                        alert('Bruger oprettet!');
-                    } else {
-                        showError(result.message || 'Uventet svar');
-                    }
-                } catch (jsonError) {
-                    showError('Ugyldigt svar fra server: ' + text.slice(0, 100));
+                const result = await response.json();
+                if (result.success) {
+                    alert('Bruger oprettet!');
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                } else {
+                    showError(result.message || 'Fejl ved oprettelse');
                 }
             } catch (err) {
                 showError('Fejl: ' + err.message);
@@ -102,9 +79,9 @@
                     localStorage.setItem('user', email);
                     document.getElementById('startScreen').classList.add('hidden');
                     document.getElementById('mainScreen').classList.remove('hidden');
-                    loadFolders();
+                    loadMessages();
                 } else {
-                    showError(result.message || 'Uventet svar');
+                    showError(result.message || 'Fejl ved login');
                 }
             } catch (err) {
                 showError('Fejl: ' + err.message);
@@ -116,176 +93,6 @@
             localStorage.removeItem('user');
             document.getElementById('mainScreen').classList.add('hidden');
             document.getElementById('startScreen').classList.remove('hidden');
-        }
-
-        // Vis send besked
-        function showSendMessage() {
-            document.getElementById('sendMessage').classList.remove('hidden');
-            document.getElementById('folders').classList.add('hidden');
-        }
-
-        // Vis mapper
-        async function showFolders() {
-            document.getElementById('sendMessage').classList.add('hidden');
-            document.getElementById('folders').classList.remove('hidden');
-            await loadFolders();
-        }
-
-        // Opret mappe
-        async function createFolder() {
-            const user = localStorage.getItem('user');
-            const folderName = document.getElementById('newFolderName').value;
-            if (!folderName) {
-                showError('Mappenavn kræves');
-                return;
-            }
-
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'createFolder', user, folderName })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    document.getElementById('newFolderName').value = '';
-                    loadFolders();
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
-        }
-
-        // Hent og vis mapper
-        async function loadFolders() {
-            const user = localStorage.getItem('user');
-            try {
-                const response = await fetch('/chat', {
-                    method: 'GET',
-                    headers: { 'x-action': 'getFolders', 'x-user-email': user }
-                });
-                const result = await response.json();
-                if (result.success) {
-                    const folderList = document.getElementById('folderList');
-                    folderList.innerHTML = '';
-                    result.folders.forEach(folder => {
-                        const li = document.createElement('li');
-                        li.textContent = folder.name;
-                        li.onclick = () => loadFolderMessages(folder.name);
-                        folderList.appendChild(li);
-                    });
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
-        }
-
-        // Hent beskeder fra mappe
-        async function loadFolderMessages(folderName) {
-            const user = localStorage.getItem('user');
-            try {
-                const response = await fetch('/chat', {
-                    method: 'GET',
-                    headers: { 'x-action': 'getFolderMessages', 'x-user-email': user, 'x-folder-name': folderName }
-                });
-                const result = await response.json();
-                if (result.success) {
-                    const folderMessages = document.getElementById('folderMessages');
-                    folderMessages.innerHTML = `<h3>Beskeder i ${folderName}</h3>`;
-                    result.messages.forEach(msg => {
-                        const div = document.createElement('div');
-                        div.className = 'message';
-                        div.innerHTML = `
-                            <p>Fra: ${msg.sender}</p>
-                            <p>Besked: ${msg.encryptedMessage}</p>
-                            <p>Tid: ${new Date(msg.timestamp).toLocaleString('da-DK')}</p>
-                            <button onclick="showFolderPopup('${msg.id}')">Gem i mappe</button>
-                            <button onclick="deleteMessage('${msg.id}')">Slet</button>
-                        `;
-                        folderMessages.appendChild(div);
-                    });
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
-        }
-
-        // Vis popup til at vælge mappe
-        async function showFolderPopup(messageId) {
-            const user = localStorage.getItem('user');
-            try {
-                const response = await fetch('/chat', {
-                    method: 'GET',
-                    headers: { 'x-action': 'getFolders', 'x-user-email': user }
-                });
-                const result = await response.json();
-                if (result.success) {
-                    const folderPopupList = document.getElementById('folderPopupList');
-                    folderPopupList.innerHTML = '';
-                    result.folders.forEach(folder => {
-                        const li = document.createElement('li');
-                        li.textContent = folder.name;
-                        li.onclick = () => saveToFolder(messageId, folder.name);
-                        folderPopupList.appendChild(li);
-                    });
-                    document.getElementById('folderPopup').classList.remove('hidden');
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
-        }
-
-        // Luk popup
-        function closeFolderPopup() {
-            document.getElementById('folderPopup').classList.add('hidden');
-        }
-
-        // Gem besked i mappe
-        async function saveToFolder(messageId, folderName) {
-            const user = localStorage.getItem('user');
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'saveToFolder', user, folderName, messageId })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    closeFolderPopup();
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
-        }
-
-        // Slet besked
-        async function deleteMessage(messageId) {
-            const user = localStorage.getItem('user');
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'deleteMessage', user, messageId })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    loadFolders();
-                } else {
-                    showError(result.message || 'Uventet svar');
-                }
-            } catch (err) {
-                showError('Fejl: ' + err.message);
-            }
         }
 
         // Send besked
@@ -308,13 +115,57 @@
                 if (result.success) {
                     document.getElementById('recipients').value = '';
                     document.getElementById('message').value = '';
+                    loadMessages();
                 } else {
-                    showError(result.message || 'Uventet svar');
+                    showError(result.message || 'Fejl ved afsendelse');
                 }
             } catch (err) {
                 showError('Fejl: ' + err.message);
             }
         }
+
+        // Hent beskeder
+        async function loadMessages() {
+            const user = localStorage.getItem('user');
+            try {
+                const response = await fetch('/chat', {
+                    method: 'GET',
+                    headers: { 'x-action': 'getMessages', 'x-user-email': user }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    const messagesDiv = document.getElementById('messages');
+                    messagesDiv.innerHTML = '<h3>Dine beskeder</h3>';
+                    result.messages.forEach(msg => {
+                        const div = document.createElement('div');
+                        div.className = 'message';
+                        div.innerHTML = `
+                            <p>Fra: ${msg.sender}</p>
+                            <p>Besked: ${msg.encryptedMessage}</p>
+                            <p>Tid: ${new Date(msg.timestamp).toLocaleString('da-DK')}</p>
+                        `;
+                        messagesDiv.appendChild(div);
+                    });
+                } else {
+                    showError(result.message || 'Fejl ved hentning');
+                }
+            } catch (err) {
+                showError('Fejl: ' + err.message);
+            }
+        }
+
+        // Tjek login ved start
+        window.onload = () => {
+            const user = localStorage.getItem('user');
+            if (user) {
+                document.getElementById('startScreen').classList.add('hidden');
+                document.getElementById('mainScreen').classList.remove('hidden');
+                loadMessages();
+            } else {
+                document.getElementById('startScreen').classList.remove('hidden');
+                document.getElementById('mainScreen').classList.add('hidden');
+            }
+        };
     </script>
 </body>
 </html>
