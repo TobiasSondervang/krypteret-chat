@@ -4,27 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Krypteret Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
     <!-- Startskærm -->
-    <div id="startScreen">
-        <h1>Krypteret Chat</h1>
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="password" placeholder="Adgangskode">
-        <button onclick="signUp()">Opret bruger</button>
-        <button onclick="signIn()">Log ind</button>
-        <p id="error" class="error hidden"></p>
+    <div id="startScreen" class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">Krypteret Chat</h1>
+        <input type="email" id="email" placeholder="Email" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="password" id="password" placeholder="Adgangskode" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="flex justify-between">
+            <button onclick="signUp()" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Opret bruger</button>
+            <button onclick="signIn()" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Log ind</button>
+        </div>
+        <p id="error" class="error hidden text-red-500 mt-4 text-center"></p>
     </div>
 
     <!-- Hovedskærm -->
-    <div id="mainScreen" class="hidden">
-        <h2>Send besked</h2>
-        <input type="text" id="recipients" placeholder="Modtagere (kommasepareret)">
-        <textarea id="message" placeholder="Skriv besked"></textarea>
-        <button onclick="sendMessage()">Send</button>
-        <button onclick="signOut()">Log ud</button>
-        <div id="messages"></div>
+    <div id="mainScreen" class="hidden bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Send besked</h2>
+        <input type="text" id="recipients" placeholder="Modtagere (kommasepareret)" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <textarea id="message" placeholder="Skriv besked" class="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        <div class="flex justify-between">
+            <button onclick="sendMessage()" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Send</button>
+            <button onclick="signOut()" class="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition">Log ud</button>
+        </div>
+        <div id="messages" class="mt-6"></div>
     </div>
 
     <script>
@@ -135,14 +140,14 @@
                 const result = await response.json();
                 if (result.success) {
                     const messagesDiv = document.getElementById('messages');
-                    messagesDiv.innerHTML = '<h3>Dine beskeder</h3>';
+                    messagesDiv.innerHTML = '<h3 class="text-lg font-semibold text-gray-800 mb-4">Dine beskeder</h3>';
                     result.messages.forEach(msg => {
                         const div = document.createElement('div');
-                        div.className = 'message';
+                        div.className = 'message bg-gray-50 p-4 rounded-lg mb-2';
                         div.innerHTML = `
-                            <p>Fra: ${msg.sender}</p>
-                            <p>Besked: ${msg.encryptedMessage}</p>
-                            <p>Tid: ${new Date(msg.timestamp).toLocaleString('da-DK')}</p>
+                            <p class="text-sm text-gray-600">Fra: ${msg.sender}</p>
+                            <p class="text-gray-800">Besked: ${msg.encryptedMessage}</p>
+                            <p class="text-xs text-gray-500">Tid: ${new Date(msg.timestamp).toLocaleString('da-DK')}</p>
                         `;
                         messagesDiv.appendChild(div);
                     });
