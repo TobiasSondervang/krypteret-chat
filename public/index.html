@@ -10,8 +10,8 @@
     <!-- Login sektion -->
     <div id="loginSection">
         <h1>Log ind eller Opret bruger</h1>
-        <input type="email" id="email" placeholder="Email"><br>
-        <input type="password" id="password" placeholder="Adgangskode"><br>
+        <input type="email" id="email" placeholder="Email (f.eks. navn@domæne.com)"><br>
+        <input type="password" id="password" placeholder="Adgangskode (mindst 8 tegn, store/små bogstaver, tal)"><br>
         <button onclick="signUp()">Opret bruger</button>
         <button onclick="signIn()">Log ind</button>
         <p id="loginMessage"></p>
@@ -64,9 +64,28 @@
         let currentMessageId = null;
         let currentEncryptedMessage = null;
 
+        // Valideringshjælpere
+        function validateEmail(email) {
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return emailRegex.test(email);
+        }
+
+        function validatePassword(password) {
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+            return passwordRegex.test(password);
+        }
+
         function signUp() {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
+            if (!validateEmail(email)) {
+                document.getElementById("loginMessage").textContent = "Ugyldig email - skal indeholde @, bogstaver og et punktum";
+                return;
+            }
+            if (!validatePassword(password)) {
+                document.getElementById("loginMessage").textContent = "Adgangskode skal være mindst 8 tegn og indeholde store bogstaver, små bogstaver og tal";
+                return;
+            }
             fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 body: JSON.stringify({ email, password, action: 'signup' })
@@ -87,6 +106,10 @@
         function signIn() {
             const email = document.getElementById("email").value;
             const password = document.getElementById("password").value;
+            if (!validateEmail(email)) {
+                document.getElementById("loginMessage").textContent = "Ugyldig email - skal indeholde @, bogstaver og et punktum";
+                return;
+            }
             fetch('/.netlify/functions/chat', {
                 method: 'POST',
                 body: JSON.stringify({ email, password, action: 'signin' })
@@ -339,6 +362,7 @@
                         messageDiv.className = "message";
                         messageDiv.innerHTML = `
                             <p>Fra: ${msg.sender}</p>
+                            <p>Sendt: ${msg.timestamp}</p>
                             <p>Krypteret: ${msg.encryptedMessage}</p>
                             <input type="text" placeholder="Indtast nøgle" id="key-${index}">
                             <button onclick="decryptMessage('${msg.encryptedMessage}', 'key-${index}')">Dekrypter</button>
@@ -372,6 +396,7 @@
                         messageDiv.className = "message";
                         messageDiv.innerHTML = `
                             <p>Fra: ${msg.sender}</p>
+                            <p>Sendt: ${msg.timestamp}</p>
                             <p>Krypteret: ${msg.encryptedMessage}</p>
                             <input type="text" placeholder="Indtast nøgle" id="folder-key-${index}">
                             <button onclick="decryptMessage('${msg.encryptedMessage}', 'folder-key-${index}')">Dekrypter</button>
