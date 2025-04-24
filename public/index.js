@@ -196,8 +196,8 @@ async function fetchMessages() {
         if (result.success) {
             messagesDiv.innerHTML = '<h3>All Messages</h3><ul>';
             for (const msg of result.messages) {
-                if (!msg.content) {
-                    console.warn('Skipping message with undefined content:', msg);
+                if (!msg.content || !msg.iv) {
+                    console.warn('Skipping message with missing content or iv:', msg);
                     continue;
                 }
                 const li = document.createElement('li');
@@ -209,7 +209,7 @@ async function fetchMessages() {
                 decryptButton.textContent = 'Decrypt';
                 decryptButton.onclick = () => {
                     try {
-                        const decrypted = decryptMessage(msg.content, input.value);
+                        const decrypted = decryptMessage(msg.content, msg.iv, input.value);
                         li.textContent = `From: ${msg.sender}, Folder: ${msg.folder || 'None'}, Message: ${decrypted}`;
                     } catch (e) {
                         li.textContent = `From: ${msg.sender}, Folder: ${msg.folder || 'None'}, Error: Invalid key`;
@@ -254,8 +254,8 @@ async function fetchFolderMessages(folderName) {
         if (result.success) {
             folderMessagesDiv.innerHTML = `<h3>Messages in ${folderName}</h3><ul>`;
             for (const msg of result.messages) {
-                if (!msg.content) {
-                    console.warn('Skipping message with undefined content:', msg);
+                if (!msg.content || !msg.iv) {
+                    console.warn('Skipping message with missing content or iv:', msg);
                     continue;
                 }
                 const li = document.createElement('li');
@@ -267,7 +267,7 @@ async function fetchFolderMessages(folderName) {
                 decryptButton.textContent = 'Decrypt';
                 decryptButton.onclick = () => {
                     try {
-                        const decrypted = decryptMessage(msg.content, input.value);
+                        const decrypted = decryptMessage(msg.content, msg.iv, input.value);
                         li.textContent = `From: ${msg.sender}, Message: ${decrypted}`;
                     } catch (e) {
                         li.textContent = `From: ${msg.sender}, Error: Invalid key`;
@@ -358,7 +358,14 @@ async function deleteMessage(messageId) {
     }
 }
 
-function decryptMessage(encrypted, secretKey) {
-    const bytes = CryptoJS.AES.decrypt(encrypted, secretKey);
-    return bytes.toString(CryptoJS.enc.Utf8);
+function decryptMessage(encrypted, ivHex, secretKey) {
+    const key = CryptoJS.SHA256(secretKey);
+    const iv = CryptoJS.enc.Hex.parse(ivHex);
+    const encryptedText = CryptoJS.enc.Hex.parse(encrypted);
+    const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: encryptedText },
+        key,
+        { iv: iv }
+    );
+    return decrypted.toString(CryptoJS.enc.Utf8);
 }
