@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
 
         if (event.httpMethod === 'POST') {
             const body = JSON.parse(event.body);
-            const { action, email, password, message, recipients, folderName, secretKey } = body;
+            const { action, email, password, message, recipients, folderName, secretKey, messageId, newFolder } = body;
 
             if (action === 'register') {
                 const existingUser = await users.findOne(
@@ -50,7 +50,11 @@ exports.handler = async (event, context) => {
                     email: email.toLowerCase(),
                     password
                 });
-                console.log('User registered:', email);
+                await folders.insertMany([
+                    { userEmail: email.toLowerCase(), folderName: 'Sent' },
+                    { userEmail: email.toLowerCase(), folderName: 'Received' }
+                ]);
+                console.log('User registered with folders:', email);
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ success: true, message: 'User registered' })
@@ -76,7 +80,7 @@ exports.handler = async (event, context) => {
                 };
             }
 
-            if (['sendMessage', 'createFolder'].includes(action)) {
+            if (['sendMessage', 'createFolder', 'moveMessage', 'deleteMessage'].includes(action)) {
                 const user = await users.findOne(
                     { email: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
@@ -99,12 +103,22 @@ exports.handler = async (event, context) => {
                     };
                 }
                 const encryptedMessage = encryptMessage(message, secretKey);
-                await messages.insertOne({
+                const messageDoc = {
                     sender: email.toLowerCase(),
                     recipients: recipients.map(r => r.toLowerCase()),
                     content: encryptedMessage,
-                    timestamp: new Date()
-                });
+                    timestamp: new Date(),
+                    folder: 'Sent'
+                };
+                await messages.insertOne(messageDoc);
+                for (const recipient of recipients) {
+                    await messages.insertOne({
+                        ...messageDoc,
+                        sender: email.toLowerCase(),
+                        recipients: [recipient.toLowerCase()],
+                        folder: 'Received'
+                    });
+                }
                 console.log('Message sent:', email, recipients);
                 return {
                     statusCode: 200,
@@ -123,15 +137,53 @@ exports.handler = async (event, context) => {
                     body: JSON.stringify({ success: true, message: 'Folder created' })
                 };
             }
+
+            if (action === 'moveMessage') {
+                const result = await messages.updateOne(
+                    { _id: new MongoClient.ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } },
+                    { $set: { folder: newFolder } }
+                );
+                if (result.modifiedCount === 0) {
+                    console.log('Move message failed: Message not found or unauthorized', messageId, email);
+                    return {
+                        statusCode: 404,
+                        body: JSON.stringify({ error: 'Message not found or unauthorized' })
+                    };
+                }
+                console.log('Message moved:', messageId, newFolder);
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ success: true, message: 'Message moved' })
+                };
+            }
+
+            if (action === 'deleteMessage') {
+                const result = await messages.deleteOne(
+                    { _id: new MongoClient.ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } }
+                );
+                if (result.deletedCount === 0) {
+                    console.log('Delete message failed: Message not found or unauthorized', messageId, email);
+                    return {
+                        statusCode: 404,
+                        body: JSON.stringify({ error: 'Message not found or unauthorized' })
+                    };
+                }
+                console.log('Message deleted:', messageId);
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ success: true, message: 'Message deleted' })
+                };
+            }
         }
 
         if (event.httpMethod === 'GET') {
-            let action, email;
+            let action, email, folderName;
             try {
                 const params = event.queryStringParameters || {};
                 action = params.action;
                 email = params.email;
-                console.log('GET request:', { action, email });
+                folderName = params.folderName;
+                console.log('GET request:', { action, email, folderName });
             } catch (error) {
                 console.error('Error parsing query parameters:', error);
                 return {
@@ -140,7 +192,7 @@ exports.handler = async (event, context) => {
                 };
             }
 
-            if (['getMessages', 'getFolders'].includes(action)) {
+            if (['getMessages', 'getFolders', 'getFolderMessages'].includes(action)) {
                 const user = await users.findOne(
                     { email: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
@@ -156,13 +208,17 @@ exports.handler = async (event, context) => {
 
             if (action === 'getMessages') {
                 const userMessages = await messages.find(
-                    { $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }] },
+                    { $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }], content: { $exists: true } },
+                    { collation: { locale: 'en', strength: 2 } }
+                ).toArray();
+                const folders = await folders.find(
+                    { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
                 console.log('Messages fetched:', email, userMessages.length);
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ success: true, messages: userMessages })
+                    body: JSON.stringify({ success: true, messages: userMessages, folders })
                 };
             }
 
@@ -175,6 +231,26 @@ exports.handler = async (event, context) => {
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ success: true, folders: userFolders })
+                };
+            }
+
+            if (action === 'getFolderMessages') {
+                const userMessages = await messages.find(
+                    { 
+                        $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }],
+                        folder: folderName,
+                        content: { $exists: true }
+                    },
+                    { collation: { locale: 'en', strength: 2 } }
+                ).toArray();
+                const folders = await folders.find(
+                    { userEmail: { $regex: `^${email}$`, $options: 'i' } },
+                    { collation: { locale: 'en', strength: 2 } }
+                ).toArray();
+                console.log('Folder messages fetched:', email, folderName, userMessages.length);
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ success: true, messages: userMessages, folders })
                 };
             }
         }
