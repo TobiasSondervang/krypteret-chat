@@ -1,7 +1,6 @@
-{
-  "name": "krypteret-chat",
-  "version": "1.0.0",
-  "dependencies": {
-    "mongodb": "^4.17.0"
-  }
-}
+ {
+       "dependencies": {
+         "mongodb": "^4.17.0",
+         "crypto": "^1.0.1"
+       }
+     }
