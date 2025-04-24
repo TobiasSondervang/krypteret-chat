@@ -8,11 +8,13 @@
         body { font-family: Arial, sans-serif; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .section { margin-bottom: 20px; }
-        input, button { width: 100%; padding: 10px; margin: 5px 0; }
+        input, button, select { width: 100%; padding: 10px; margin: 5px 0; }
         button { background-color: #2563eb; color: white; border: none; cursor: pointer; }
         button:hover { background-color: #1e40af; }
         ul { list-style: none; padding: 0; }
         li { margin: 10px 0; }
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -47,6 +49,10 @@
             </form>
             <div id="folders" class="mt-6"></div>
             <div id="messages" class="mt-6"></div>
+        </div>
+        <div id="folder-messages-section" class="section" style="display: none;">
+            <button onclick="showApp()" class="mb-4">Back to App</button>
+            <div id="folder-messages" class="mt-6"></div>
         </div>
     </div>
     <script src="index.js"></script>
