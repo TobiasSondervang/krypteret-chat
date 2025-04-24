@@ -7,8 +7,11 @@ const foldersDiv = document.getElementById('folders');
 const messagesDiv = document.getElementById('messages');
 const loginSection = document.getElementById('login-section');
 const appSection = document.getElementById('app-section');
+const folderMessagesSection = document.getElementById('folder-messages-section');
+const folderMessagesDiv = document.getElementById('folder-messages');
 
 let currentUser = null;
+let selectedFolder = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const user = localStorage.getItem('user');
@@ -25,11 +28,21 @@ document.addEventListener('DOMContentLoaded', () => {
 function showLogin() {
     loginSection.style.display = 'block';
     appSection.style.display = 'none';
+    folderMessagesSection.style.display = 'none';
 }
 
 function showApp() {
     loginSection.style.display = 'none';
     appSection.style.display = 'block';
+    folderMessagesSection.style.display = 'none';
+}
+
+function showFolderMessages(folderName) {
+    selectedFolder = folderName;
+    loginSection.style.display = 'none';
+    appSection.style.display = 'none';
+    folderMessagesSection.style.display = 'block';
+    fetchFolderMessages(folderName);
 }
 
 loginForm.addEventListener('submit', async (e) => {
@@ -162,7 +175,9 @@ async function fetchFolders() {
         console.log('Fetch folders response:', result);
 
         if (result.success) {
-            foldersDiv.innerHTML = '<h3>Folders</h3><ul>' + result.folders.map(f => `<li>${f.folderName}</li>`).join('') + '</ul>';
+            foldersDiv.innerHTML = '<h3>Folders</h3><ul>' + 
+                result.folders.map(f => `<li><a href="#" onclick="showFolderMessages('${f.folderName}')">${f.folderName}</a></li>`).join('') + 
+                '</ul>';
         } else {
             foldersDiv.innerHTML = `<p>Error: ${result.error}</p>`;
         }
@@ -179,25 +194,45 @@ async function fetchMessages() {
         console.log('Fetch messages response:', result);
 
         if (result.success) {
-            messagesDiv.innerHTML = '<h3>Messages</h3><ul>';
+            messagesDiv.innerHTML = '<h3>All Messages</h3><ul>';
             for (const msg of result.messages) {
+                if (!msg.content) {
+                    console.warn('Skipping message with undefined content:', msg);
+                    continue;
+                }
                 const li = document.createElement('li');
-                li.textContent = `From: ${msg.sender}, Encrypted: ${msg.content.substring(0, 20)}...`;
+                li.textContent = `From: ${msg.sender}, Folder: ${msg.folder || 'None'}, Encrypted: ${msg.content.substring(0, 20)}...`;
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.placeholder = 'Enter secret key';
-                const button = document.createElement('button');
-                button.textContent = 'Decrypt';
-                button.onclick = () => {
+                const decryptButton = document.createElement('button');
+                decryptButton.textContent = 'Decrypt';
+                decryptButton.onclick = () => {
                     try {
                         const decrypted = decryptMessage(msg.content, input.value);
-                        li.textContent = `From: ${msg.sender}, Message: ${decrypted}`;
+                        li.textContent = `From: ${msg.sender}, Folder: ${msg.folder || 'None'}, Message: ${decrypted}`;
                     } catch (e) {
-                        li.textContent = `From: ${msg.sender}, Error: Invalid key`;
+                        li.textContent = `From: ${msg.sender}, Folder: ${msg.folder || 'None'}, Error: Invalid key`;
                     }
                 };
+                const moveSelect = document.createElement('select');
+                moveSelect.innerHTML = '<option value="">Move to...</option>' + 
+                    result.folders.map(f => `<option value="${f.folderName}">${f.folderName}</option>`).join('');
+                const moveButton = document.createElement('button');
+                moveButton.textContent = 'Move';
+                moveButton.onclick = () => {
+                    if (moveSelect.value) {
+                        moveMessage(msg._id, moveSelect.value);
+                    }
+                };
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => deleteMessage(msg._id);
                 li.appendChild(input);
-                li.appendChild(button);
+                li.appendChild(decryptButton);
+                li.appendChild(moveSelect);
+                li.appendChild(moveButton);
+                li.appendChild(deleteButton);
                 messagesDiv.appendChild(li);
             }
             messagesDiv.innerHTML += '</ul>';
@@ -207,6 +242,119 @@ async function fetchMessages() {
     } catch (error) {
         console.error('Fetch messages error:', error);
         messagesDiv.innerHTML = '<p>Error loading messages</p>';
+    }
+}
+
+async function fetchFolderMessages(folderName) {
+    try {
+        const response = await fetch(`/chat?action=getFolderMessages&email=${encodeURIComponent(currentUser.email)}&folderName=${encodeURIComponent(folderName)}`);
+        const result = await response.json();
+        console.log('Fetch folder messages response:', result);
+
+        if (result.success) {
+            folderMessagesDiv.innerHTML = `<h3>Messages in ${folderName}</h3><ul>`;
+            for (const msg of result.messages) {
+                if (!msg.content) {
+                    console.warn('Skipping message with undefined content:', msg);
+                    continue;
+                }
+                const li = document.createElement('li');
+                li.textContent = `From: ${msg.sender}, Encrypted: ${msg.content.substring(0, 20)}...`;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'Enter secret key';
+                const decryptButton = document.createElement('button');
+                decryptButton.textContent = 'Decrypt';
+                decryptButton.onclick = () => {
+                    try {
+                        const decrypted = decryptMessage(msg.content, input.value);
+                        li.textContent = `From: ${msg.sender}, Message: ${decrypted}`;
+                    } catch (e) {
+                        li.textContent = `From: ${msg.sender}, Error: Invalid key`;
+                    }
+                };
+                const moveSelect = document.createElement('select');
+                moveSelect.innerHTML = '<option value="">Move to...</option>' + 
+                    result.folders.map(f => `<option value="${f.folderName}">${f.folderName}</option>`).join('');
+                const moveButton = document.createElement('button');
+                moveButton.textContent = 'Move';
+                moveButton.onclick = () => {
+                    if (moveSelect.value) {
+                        moveMessage(msg._id, moveSelect.value);
+                        fetchFolderMessages(folderName);
+                    }
+                };
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => {
+                    deleteMessage(msg._id);
+                    fetchFolderMessages(folderName);
+                };
+                li.appendChild(input);
+                li.appendChild(decryptButton);
+                li.appendChild(moveSelect);
+                li.appendChild(moveButton);
+                li.appendChild(deleteButton);
+                folderMessagesDiv.appendChild(li);
+            }
+            folderMessagesDiv.innerHTML += '</ul>';
+        } else {
+            folderMessagesDiv.innerHTML = `<p>Error: ${result.error}</p>`;
+        }
+    } catch (error) {
+        console.error('Fetch folder messages error:', error);
+        folderMessagesDiv.innerHTML = '<p>Error loading folder messages</p>';
+    }
+}
+
+async function moveMessage(messageId, newFolder) {
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'moveMessage',
+                email: currentUser.email,
+                messageId,
+                newFolder
+            })
+        });
+        const result = await response.json();
+        console.log('Move message response:', result);
+
+        if (result.success) {
+            fetchMessages();
+        } else {
+            alert(result.error);
+        }
+    } catch (error) {
+        console.error('Move message error:', error);
+        alert('Error moving message');
+    }
+}
+
+async function deleteMessage(messageId) {
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'deleteMessage',
+                email: currentUser.email,
+                messageId
+            })
+        });
+        const result = await response.json();
+        console.log('Delete message response:', result);
+
+        if (result.success) {
+            fetchMessages();
+        } else {
+            alert(result.error);
+        }
+    } catch (error) {
+        console.error('Delete message error:', error);
+        alert('Error deleting message');
     }
 }
 
