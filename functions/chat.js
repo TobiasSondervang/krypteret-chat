@@ -1,4 +1,4 @@
-```javascript
+
      const { MongoClient } = require('mongodb');
 
      exports.handler = async (event, context) => {
@@ -120,4 +120,3 @@
              }
          }
      };
-     ```
