@@ -25,10 +25,12 @@ exports.handler = async (event, context) => {
 
         const encryptMessage = (text, secretKey) => {
             try {
-                const cipher = crypto.createCipher('aes-256-cbc', secretKey);
+                const key = crypto.createHash('sha256').update(secretKey).digest();
+                const iv = crypto.randomBytes(16);
+                const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
                 let encrypted = cipher.update(text, 'utf8', 'hex');
                 encrypted += cipher.final('hex');
-                return encrypted;
+                return { iv: iv.toString('hex'), content: encrypted };
             } catch (error) {
                 console.error('Encryption error:', error);
                 throw new Error('Failed to encrypt message');
@@ -124,11 +126,12 @@ exports.handler = async (event, context) => {
                         body: JSON.stringify({ error: 'Message and recipients are required' })
                     };
                 }
-                const encryptedMessage = encryptMessage(message, secretKey);
+                const encrypted = encryptMessage(message, secretKey);
                 const messageDoc = {
                     sender: email.toLowerCase(),
                     recipients: recipients.map(r => r.toLowerCase()),
-                    content: encryptedMessage,
+                    content: encrypted.content,
+                    iv: encrypted.iv,
                     timestamp: new Date(),
                     folder: 'Sent'
                 };
@@ -235,18 +238,19 @@ exports.handler = async (event, context) => {
                             { sender: { $regex: `^${email}$`, $options: 'i' } }, 
                             { recipients: { $regex: `^${email}$`, $options: 'i' } }
                         ], 
-                        content: { $exists: true } 
+                        content: { $exists: true },
+                        iv: { $exists: true }
                     },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                const folders = await folders.find(
+                const userFolders = await folders.find(
                     { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
                 console.log('Beskeder hentet:', email, userMessages.length);
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ success: true, messages: userMessages, folders })
+                    body: JSON.stringify({ success: true, messages: userMessages, folders: userFolders })
                 };
             }
 
@@ -263,6 +267,7 @@ exports.handler = async (event, context) => {
             }
 
             if (action === 'getFolderMessages') {
+                console.log('Fetching messages for folder:', folderName);
                 const userMessages = await messages.find(
                     { 
                         $or: [
@@ -270,18 +275,19 @@ exports.handler = async (event, context) => {
                             { recipients: { $regex: `^${email}$`, $options: 'i' } }
                         ],
                         folder: folderName,
-                        content: { $exists: true }
+                        content: { $exists: true },
+                        iv: { $exists: true }
                     },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                const folders = await folders.find(
+                const userFolders = await folders.find(
                     { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
                 console.log('Mapper beskeder hentet:', email, folderName, userMessages.length);
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ success: true, messages: userMessages, folders })
+                    body: JSON.stringify({ success: true, messages: userMessages, folders: userFolders })
                 };
             }
         }
