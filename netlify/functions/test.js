@@ -1,4 +1,4 @@
-```javascript
+
      exports.handler = async (event, context) => {
          console.log('Test function invoked:', { method: event.httpMethod, body: event.body });
          return {
@@ -6,4 +6,3 @@
              body: JSON.stringify({ success: true, message: 'Test function works!' })
          };
      };
-     ```
