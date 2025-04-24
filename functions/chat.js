@@ -1,8 +1,8 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const crypto = require('crypto');
 
 exports.handler = async (event, context) => {
-    console.log('Function invoked:', event);
+    console.log('Function invoked:', JSON.stringify(event, null, 2));
     const uri = process.env.MONGODB_URI;
 
     if (!uri) {
@@ -17,20 +17,35 @@ exports.handler = async (event, context) => {
     try {
         client = new MongoClient(uri);
         await client.connect();
+        console.log('Connected to MongoDB');
         const db = client.db('chatdb');
         const users = db.collection('users');
         const messages = db.collection('messages');
         const folders = db.collection('folders');
 
         const encryptMessage = (text, secretKey) => {
-            const cipher = crypto.createCipher('aes-256-cbc', secretKey);
-            let encrypted = cipher.update(text, 'utf8', 'hex');
-            encrypted += cipher.final('hex');
-            return encrypted;
+            try {
+                const cipher = crypto.createCipher('aes-256-cbc', secretKey);
+                let encrypted = cipher.update(text, 'utf8', 'hex');
+                encrypted += cipher.final('hex');
+                return encrypted;
+            } catch (error) {
+                console.error('Encryption error:', error);
+                throw new Error('Failed to encrypt message');
+            }
         };
 
         if (event.httpMethod === 'POST') {
-            const body = JSON.parse(event.body);
+            let body;
+            try {
+                body = JSON.parse(event.body);
+            } catch (error) {
+                console.error('Invalid JSON body:', error);
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ error: 'Invalid JSON body' })
+                };
+            }
             const { action, email, password, message, recipients, folderName, secretKey, messageId, newFolder } = body;
 
             if (action === 'register') {
@@ -102,6 +117,13 @@ exports.handler = async (event, context) => {
                         body: JSON.stringify({ error: 'Secret key is required' })
                     };
                 }
+                if (!message || !recipients || !Array.isArray(recipients)) {
+                    console.log('Send message failed: Invalid message or recipients', { message, recipients });
+                    return {
+                        statusCode: 400,
+                        body: JSON.stringify({ error: 'Message and recipients are required' })
+                    };
+                }
                 const encryptedMessage = encryptMessage(message, secretKey);
                 const messageDoc = {
                     sender: email.toLowerCase(),
@@ -140,7 +162,7 @@ exports.handler = async (event, context) => {
 
             if (action === 'moveMessage') {
                 const result = await messages.updateOne(
-                    { _id: new MongoClient.ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } },
+                    { _id: new ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } },
                     { $set: { folder: newFolder } }
                 );
                 if (result.modifiedCount === 0) {
@@ -159,7 +181,7 @@ exports.handler = async (event, context) => {
 
             if (action === 'deleteMessage') {
                 const result = await messages.deleteOne(
-                    { _id: new MongoClient.ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } }
+                    { _id: new ObjectId(messageId), sender: { $regex: `^${email}$`, $options: 'i' } }
                 );
                 if (result.deletedCount === 0) {
                     console.log('Delete message failed: Message not found or unauthorized', messageId, email);
@@ -198,24 +220,30 @@ exports.handler = async (event, context) => {
                     { collation: { locale: 'en', strength: 2 } }
                 );
                 if (!user) {
-                    console.log(`${action} failed: Unauthorized`, email);
+                    console.log(`${action} forespørgsel mislykkedes: Uautoriseret`, email);
                     return {
                         statusCode: 401,
-                        body: JSON.stringify({ error: 'Unauthorized' })
+                        body: JSON.stringify({ error: 'Uautoriseret' })
                     };
                 }
             }
 
             if (action === 'getMessages') {
                 const userMessages = await messages.find(
-                    { $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }], content: { $exists: true } },
+                    { 
+                        $or: [
+                            { sender: { $regex: `^${email}$`, $options: 'i' } }, 
+                            { recipients: { $regex: `^${email}$`, $options: 'i' } }
+                        ], 
+                        content: { $exists: true } 
+                    },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
                 const folders = await folders.find(
                     { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                console.log('Messages fetched:', email, userMessages.length);
+                console.log('Beskeder hentet:', email, userMessages.length);
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ success: true, messages: userMessages, folders })
@@ -227,7 +255,7 @@ exports.handler = async (event, context) => {
                     { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                console.log('Folders fetched:', email, userFolders.length);
+                console.log('Mapper hentet:', email, userFolders.length);
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ success: true, folders: userFolders })
@@ -237,7 +265,10 @@ exports.handler = async (event, context) => {
             if (action === 'getFolderMessages') {
                 const userMessages = await messages.find(
                     { 
-                        $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }],
+                        $or: [
+                            { sender: { $regex: `^${email}$`, $options: 'i' } }, 
+                            { recipients: { $regex: `^${email}$`, $options: 'i' } }
+                        ],
                         folder: folderName,
                         content: { $exists: true }
                     },
@@ -247,7 +278,7 @@ exports.handler = async (event, context) => {
                     { userEmail: { $regex: `^${email}$`, $options: 'i' } },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                console.log('Folder messages fetched:', email, folderName, userMessages.length);
+                console.log('Mapper beskeder hentet:', email, folderName, userMessages.length);
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ success: true, messages: userMessages, folders })
@@ -257,15 +288,18 @@ exports.handler = async (event, context) => {
 
         return {
             statusCode: 405,
-            body: JSON.stringify({ error: 'Method not allowed' })
+            body: JSON.stringify({ error: 'Metode ikke tilladt' })
         };
     } catch (error) {
-        console.error('Function error:', error);
+        console.error('Funktionsfejl:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Function error' })
+            body: JSON.stringify({ error: 'Funktionsfejl', details: error.message })
         };
     } finally {
-        if (client) await client.close();
+        if (client) {
+            await client.close();
+            console.log('MongoDB forbindelse lukket');
+        }
     }
 };
