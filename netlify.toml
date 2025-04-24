@@ -1,4 +1,4 @@
-```toml
+
      [build]
        command = "npm install"
        functions = "functions"
@@ -9,4 +9,3 @@
        to = "/.netlify/functions/chat"
        status = 200
        force = true
-     ```
