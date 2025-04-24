@@ -4,21 +4,12 @@ const crypto = require('crypto');
 exports.handler = async (event, context) => {
     console.log('Function invoked:', event);
     const uri = process.env.MONGODB_URI;
-    const secretKey = process.env.SECRET_KEY;
 
     if (!uri) {
         console.error('MONGODB_URI is not set');
         return {
             statusCode: 500,
             body: JSON.stringify({ error: 'MONGODB_URI is not set' })
-        };
-    }
-
-    if (!secretKey) {
-        console.error('SECRET_KEY is not set');
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'SECRET_KEY is not set' })
         };
     }
 
@@ -31,23 +22,16 @@ exports.handler = async (event, context) => {
         const messages = db.collection('messages');
         const folders = db.collection('folders');
 
-        const encryptMessage = (text) => {
+        const encryptMessage = (text, secretKey) => {
             const cipher = crypto.createCipher('aes-256-cbc', secretKey);
             let encrypted = cipher.update(text, 'utf8', 'hex');
             encrypted += cipher.final('hex');
             return encrypted;
         };
 
-        const decryptMessage = (encrypted) => {
-            const decipher = crypto.createDecipher('aes-256-cbc', secretKey);
-            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            return decrypted;
-        };
-
         if (event.httpMethod === 'POST') {
             const body = JSON.parse(event.body);
-            const { action, email, username, password, message, recipients, folderName } = body;
+            const { action, email, username, password, message, recipients, folderName, secretKey } = body;
 
             if (action === 'register') {
                 const existingUser = await users.findOne(
@@ -90,7 +74,13 @@ exports.handler = async (event, context) => {
             }
 
             if (action === 'sendMessage') {
-                const encryptedMessage = encryptMessage(message);
+                if (!secretKey) {
+                    return {
+                        statusCode: 400,
+                        body: JSON.stringify({ error: 'Secret key is required' })
+                    };
+                }
+                const encryptedMessage = encryptMessage(message, secretKey);
                 await messages.insertOne({
                     sender: email.toLowerCase(),
                     recipients: recipients.map(r => r.toLowerCase()),
@@ -123,13 +113,9 @@ exports.handler = async (event, context) => {
                     { $or: [{ sender: { $regex: `^${email}$`, $options: 'i' } }, { recipients: { $regex: `^${email}$`, $options: 'i' } }] },
                     { collation: { locale: 'en', strength: 2 } }
                 ).toArray();
-                const decryptedMessages = userMessages.map(msg => ({
-                    ...msg,
-                    content: decryptMessage(msg.content)
-                }));
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ success: true, messages: decryptedMessages })
+                    body: JSON.stringify({ success: true, messages: userMessages })
                 };
             }
 
