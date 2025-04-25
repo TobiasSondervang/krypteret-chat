@@ -1,11 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelector('.send-button').addEventListener('click', sendMessage);
+  const sendButton = document.querySelector('.send-button');
+  if (sendButton) {
+    sendButton.addEventListener('click', sendMessage);
+    console.log('Send-knap fundet og event listener tilføjet');
+  } else {
+    console.error('Send-knap (.send-button) blev ikke fundet i DOM');
+  }
   getFolderMessages('Sent');
   getFolderMessages('Received');
 });
 
 async function sendMessage() {
   const sendButton = document.querySelector('.send-button');
+  if (!sendButton) {
+    console.error('Send-knap (.send-button) mangler under afsendelse');
+    return;
+  }
   sendButton.disabled = true;
 
   const sender = document.querySelector('.sender-email').value;
@@ -46,15 +56,19 @@ async function getFolderMessages(folderName) {
     console.log(`Hentede beskeder for ${folderName}:`, messages);
 
     const messageList = document.querySelector(`.${folderName.toLowerCase()}-messages`);
-    messageList.innerHTML = '';
-    messages.forEach(msg => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        ${msg.content}
-        <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
-      `;
-      messageList.appendChild(li);
-    });
+    if (messageList) {
+      messageList.innerHTML = '';
+      messages.forEach(msg => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          ${msg.content}
+          <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
+        `;
+        messageList.appendChild(li);
+      });
+    } else {
+      console.error(`Beskedliste (.${folderName.toLowerCase()}-messages) blev ikke fundet`);
+    }
   } catch (error) {
     console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
   }
