@@ -1,16 +1,16 @@
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('sendButton').addEventListener('click', sendMessage);
+  document.querySelector('.send-button').addEventListener('click', sendMessage);
   getFolderMessages('Sent');
   getFolderMessages('Received');
 });
 
 async function sendMessage() {
-  const sendButton = document.getElementById('sendButton');
+  const sendButton = document.querySelector('.send-button');
   sendButton.disabled = true;
 
-  const sender = document.getElementById('senderEmail').value;
-  const recipient = document.getElementById('recipientEmail').value;
-  const content = document.getElementById('messageContent').value;
+  const sender = document.querySelector('.sender-email').value;
+  const recipient = document.querySelector('.recipient-email').value;
+  const content = document.querySelector('.message-content').value;
 
   try {
     const response = await fetch('/.netlify/functions/chat', {
@@ -25,7 +25,7 @@ async function sendMessage() {
     }
 
     console.log('Besked sendt succesfuldt:', result);
-    document.getElementById('messageContent').value = '';
+    document.querySelector('.message-content').value = '';
     await getFolderMessages('Sent');
   } catch (error) {
     console.error('Fejl ved afsendelse:', error);
@@ -36,7 +36,7 @@ async function sendMessage() {
 }
 
 async function getFolderMessages(folderName) {
-  const email = document.getElementById('senderEmail').value;
+  const email = document.querySelector('.sender-email').value;
   try {
     const response = await fetch(
       `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
@@ -45,7 +45,7 @@ async function getFolderMessages(folderName) {
 
     console.log(`Hentede beskeder for ${folderName}:`, messages);
 
-    const messageList = document.getElementById(`${folderName.toLowerCase()}Messages`);
+    const messageList = document.querySelector(`.${folderName.toLowerCase()}-messages`);
     messageList.innerHTML = '';
     messages.forEach(msg => {
       const li = document.createElement('li');
