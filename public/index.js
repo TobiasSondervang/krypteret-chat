@@ -1,100 +1,88 @@
-const express = require('express');
-const { MongoClient, ObjectId } = require('mongodb');
-const app = express();
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sendButton').addEventListener('click', sendMessage);
+  getFolderMessages('Sent');
+  getFolderMessages('Received');
+});
 
-app.use(express.json());
+async function sendMessage() {
+  const sendButton = document.getElementById('sendButton');
+  sendButton.disabled = true;
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://tobias:2006Tobias@cluster0.jwp1omu.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-const client = new MongoClient(uri);
-let db;
+  const sender = document.getElementById('senderEmail').value;
+  const recipient = document.getElementById('recipientEmail').value;
+  const content = document.getElementById('messageContent').value;
 
-async function connectToMongoDB() {
   try {
-    await client.connect();
-    console.log('Connected to MongoDB');
-    db = client.db('chatdb');
+    const response = await fetch('/.netlify/functions/chat', {
+      method: 'POST',
+      body: JSON.stringify({ sender, recipient, content }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || 'Fejl ved afsendelse');
+    }
+
+    console.log('Besked sendt succesfuldt:', result);
+    document.getElementById('messageContent').value = '';
+    await getFolderMessages('Sent');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    console.error('Fejl ved afsendelse:', error);
+    alert('Kunne ikke sende besked: ' + error.message);
+  } finally {
+    sendButton.disabled = false;
   }
 }
 
-connectToMongoDB();
-
-// POST: Send en besked
-app.post('/chat', async (req, res) => {
+async function getFolderMessages(folderName) {
+  const email = document.getElementById('senderEmail').value;
   try {
-    const { sender, recipient, content } = req.body;
-    const timestamp = new Date();
+    const response = await fetch(
+      `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
+    );
+    const messages = await response.json();
 
-    const senderMessage = {
-      sender,
-      recipient,
-      content,
-      folder: 'Sent',
-      timestamp
-    };
-    const recipientMessage = {
-      sender,
-      recipient,
-      content,
-      folder: 'Received',
-      timestamp
-    };
+    console.log(`Hentede beskeder for ${folderName}:`, messages);
 
-    const session = client.startSession();
-    try {
-      await session.withTransaction(async () => {
-        await db.collection('messages').insertOne(senderMessage, { session });
-        await db.collection('messages').insertOne(recipientMessage, { session });
-      });
-      res.status(200).json({ success: true });
-    } catch (error) {
-      console.error('Transaction error:', error);
-      if (error.code === 11000) {
-        res.status(400).json({ error: 'Duplikat besked ID' });
-      } else {
-        res.status(500).json({ error: 'Serverfejl' });
-      }
-    } finally {
-      await session.endSession();
-    }
+    const messageList = document.getElementById(`${folderName.toLowerCase()}Messages`);
+    messageList.innerHTML = '';
+    messages.forEach(msg => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        ${msg.content}
+        <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
+      `;
+      messageList.appendChild(li);
+    });
   } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(500).json({ error: 'Serverfejl' });
+    console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
   }
-});
+}
 
-// GET: Hent beskeder fra en mappe
-app.get('/chat', async (req, res) => {
+function decryptMessage(messageId, encryptedContent) {
+  console.log('Dekrypterer besked ID:', messageId);
   try {
-    const { action, email, folderName } = req.query;
-    if (action !== 'getFolderMessages') {
-      return res.status(400).json({ error: 'Ugyldig handling' });
-    }
-
-    const messages = await db.collection('messages').find({
-      $or: [
-        { sender: email, folder: folderName },
-        { recipient: email, folder: folderName }
-      ]
-    }).toArray();
-
-    res.status(200).json(messages);
+    const key = prompt('Indtast dekrypteringsnøgle');
+    if (!key) throw new Error('Ingen nøgle angivet');
+    const bytes = CryptoJS.AES.decrypt(encryptedContent, key);
+    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    if (!decrypted) throw new Error('Ugyldig nøgle eller indhold');
+    console.log('Dekrypteret besked:', decrypted);
+    alert('Dekrypteret besked: ' + decrypted);
+    return decrypted;
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    res.status(500).json({ error: 'Serverfejl' });
+    console.error('Dekrypteringsfejl:', error);
+    alert('Dekryptering mislykkedes: ' + error.message);
+    return null;
   }
-});
+}
 
-// Luk MongoDB forbindelse ved serverstop
-process.on('SIGTERM', async () => {
-  await client.close();
-  console.log('MongoDB forbindelse lukket');
-  process.exit(0);
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server kører på port ${port}`);
+document.addEventListener('click', (event) => {
+  if (event.target.classList.contains('decryptButton')) {
+    console.log('Dekrypt-knap klikket');
+    const messageId = event.target.dataset.messageId;
+    const encryptedContent = event.target.parentElement.textContent.trim().split(' ')[0];
+    decryptMessage(messageId, encryptedContent);
+  }
 });
