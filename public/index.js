@@ -277,9 +277,12 @@ async function getFolders() {
     } else {
       console.error('Folder container (#folders) blev ikke fundet');
     }
+
+    return folders; // Returner foldere til brug i dropdowns
   } catch (error) {
     console.error('Fejl ved hentning af foldere:', error);
     alert('Kunne ikke hente foldere: ' + error.message);
+    return [];
   }
 }
 
@@ -312,16 +315,47 @@ async function getMessages() {
 
     console.log('Hentede beskeder:', messages);
 
+    const folders = await getFolders(); // Hent foldere til dropdown
     const messagesDiv = document.querySelector('#messages');
     if (messagesDiv) {
       messagesDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Messages</h3>';
       messages.forEach(msg => {
         const li = document.createElement('div');
+        const danishTime = new Date(msg.timestamp).toLocaleString('da-DK');
         li.innerHTML = `
-          ${msg.content}
+          <div>Fra: ${msg.sender}</div>
+          <div>Sendt: ${danishTime}</div>
+          <div>Indhold: ${msg.content}</div>
           <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
+          <button class="deleteButton" data-message-id="${msg._id}">Slet</button>
+          <select class="moveFolderSelect" data-message-id="${msg._id}">
+            <option value="">Vælg mappe</option>
+            ${folders.map(folder => `<option value="${folder}">${folder}</option>`).join('')}
+          </select>
+          <button class="moveButton" data-message-id="${msg._id}">Flyt</button>
         `;
         messagesDiv.appendChild(li);
+      });
+
+      // Tilføj event listeners til slet- og flyt-knapper
+      document.querySelectorAll('.deleteButton').forEach(button => {
+        button.addEventListener('click', () => {
+          const messageId = button.dataset.messageId;
+          deleteMessage(messageId, 'main');
+        });
+      });
+
+      document.querySelectorAll('.moveButton').forEach(button => {
+        button.addEventListener('click', () => {
+          const messageId = button.dataset.messageId;
+          const select = document.querySelector(`select[data-message-id="${messageId}"]`);
+          const folderName = select.value;
+          if (!folderName) {
+            alert('Vælg en mappe at flytte til');
+            return;
+          }
+          moveMessage(messageId, folderName, 'main');
+        });
       });
     } else {
       console.error('Besked container (#messages) blev ikke fundet');
@@ -364,16 +398,47 @@ async function showFolderMessages(folderName) {
 
     console.log(`Hentede beskeder for folder ${folderName}:`, messages);
 
+    const folders = await getFolders(); // Hent foldere til dropdown
     const folderMessagesDiv = document.querySelector('#folder-messages');
     if (folderMessagesDiv) {
       folderMessagesDiv.innerHTML = `<h3 class="text-xl font-bold mb-2">${folderName} Messages</h3>`;
       messages.forEach(msg => {
         const li = document.createElement('div');
+        const danishTime = new Date(msg.timestamp).toLocaleString('da-DK');
         li.innerHTML = `
-          ${msg.content}
+          <div>Fra: ${msg.sender}</div>
+          <div>Sendt: ${danishTime}</div>
+          <div>Indhold: ${msg.content}</div>
           <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
+          <button class="deleteButton" data-message-id="${msg._id}">Slet</button>
+          <select class="moveFolderSelect" data-message-id="${msg._id}">
+            <option value="">Vælg mappe</option>
+            ${folders.map(folder => `<option value="${folder}">${folder}</option>`).join('')}
+          </select>
+          <button class="moveButton" data-message-id="${msg._id}">Flyt</button>
         `;
         folderMessagesDiv.appendChild(li);
+      });
+
+      // Tilføj event listeners til slet- og flyt-knapper
+      document.querySelectorAll('.deleteButton').forEach(button => {
+        button.addEventListener('click', () => {
+          const messageId = button.dataset.messageId;
+          deleteMessage(messageId, folderName);
+        });
+      });
+
+      document.querySelectorAll('.moveButton').forEach(button => {
+        button.addEventListener('click', () => {
+          const messageId = button.dataset.messageId;
+          const select = document.querySelector(`select[data-message-id="${messageId}"]`);
+          const newFolderName = select.value;
+          if (!newFolderName) {
+            alert('Vælg en mappe at flytte til');
+            return;
+          }
+          moveMessage(messageId, newFolderName, folderName);
+        });
       });
     } else {
       console.error('Folder besked container (#folder-messages) blev ikke fundet');
@@ -381,6 +446,99 @@ async function showFolderMessages(folderName) {
   } catch (error) {
     console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
     alert(`Kunne ikke hente beskeder for ${folderName}: ` + error.message);
+  }
+}
+
+async function deleteMessage(messageId, context) {
+  if (!currentUserEmail) {
+    console.warn('Ingen bruger logget ind, kan ikke slette besked');
+    alert('Log ind for at slette beskeder');
+    return;
+  }
+
+  try {
+    const response = await fetch('/functions/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'deleteMessage',
+        email: currentUserEmail,
+        messageId
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    console.log('Delete message respons status:', response.status, response.statusText);
+    const rawResponse = await response.text();
+    console.log('Rå respons:', rawResponse);
+
+    let result;
+    try {
+      result = JSON.parse(rawResponse);
+    } catch (jsonError) {
+      console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+      throw new Error('Ugyldig JSON-respons fra serveren');
+    }
+
+    if (!response.ok) {
+      throw new Error(result.error || `Serverfejl: ${response.status}`);
+    }
+
+    console.log('Besked slettet:', messageId);
+    if (context === 'main') {
+      getMessages();
+    } else {
+      showFolderMessages(context);
+    }
+  } catch (error) {
+    console.error('Fejl ved sletning af besked:', error);
+    alert('Kunne ikke slette besked: ' + error.message);
+  }
+}
+
+async function moveMessage(messageId, folderName, context) {
+  if (!currentUserEmail) {
+    console.warn('Ingen bruger logget ind, kan ikke flytte besked');
+    alert('Log ind for at flytte beskeder');
+    return;
+  }
+
+  try {
+    const response = await fetch('/functions/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'moveMessage',
+        email: currentUserEmail,
+        messageId,
+        folderName
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    console.log('Move message respons status:', response.status, response.statusText);
+    const rawResponse = await response.text();
+    console.log('Rå respons:', rawResponse);
+
+    let result;
+    try {
+      result = JSON.parse(rawResponse);
+    } catch (jsonError) {
+      console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+      throw new Error('Ugyldig JSON-respons fra serveren');
+    }
+
+    if (!response.ok) {
+      throw new Error(result.error || `Serverfejl: ${response.status}`);
+    }
+
+    console.log('Besked flyttet til:', folderName);
+    if (context === 'main') {
+      getMessages();
+    } else {
+      showFolderMessages(context);
+    }
+  } catch (error) {
+    console.error('Fejl ved flytning af besked:', error);
+    alert('Kunne ikke flytte besked: ' + error.message);
   }
 }
 

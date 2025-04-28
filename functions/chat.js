@@ -1,4 +1,4 @@
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
 
 exports.handler = async (event, context) => {
@@ -111,6 +111,77 @@ exports.handler = async (event, context) => {
           { upsert: true }
         );
 
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true })
+        };
+      } else if (body.action === 'deleteMessage') {
+        const { email, messageId } = body;
+        if (!email || !messageId) {
+          console.error('Missing email or messageId for deleteMessage');
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Manglende email eller besked-ID' })
+          };
+        }
+
+        console.log('Deleting message:', messageId, 'for user:', email);
+        const result = await db.collection('messages').deleteOne({
+          _id: new ObjectId(messageId),
+          $or: [{ sender: email }, { recipient: email }]
+        });
+
+        if (result.deletedCount === 0) {
+          console.log('Message not found or user not authorized:', messageId);
+          return {
+            statusCode: 403,
+            body: JSON.stringify({ error: 'Besked ikke fundet eller ingen adgang' })
+          };
+        }
+
+        console.log('Message deleted:', messageId);
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true })
+        };
+      } else if (body.action === 'moveMessage') {
+        const { email, messageId, folderName } = body;
+        if (!email || !messageId || !folderName) {
+          console.error('Missing email, messageId, or folderName for moveMessage');
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Manglende email, besked-ID eller foldernavn' })
+          };
+        }
+
+        // Tjek, om folder eksisterer
+        const folderDoc = await db.collection('folders').findOne({ email });
+        if (!folderDoc || !folderDoc.folders.includes(folderName)) {
+          console.log('Folder not found:', folderName);
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Folder ikke fundet' })
+          };
+        }
+
+        console.log('Moving message:', messageId, 'to folder:', folderName);
+        const result = await db.collection('messages').updateOne(
+          {
+            _id: new ObjectId(messageId),
+            $or: [{ sender: email }, { recipient: email }]
+          },
+          { $set: { folder: folderName } }
+        );
+
+        if (result.matchedCount === 0) {
+          console.log('Message not found or user not authorized:', messageId);
+          return {
+            statusCode: 403,
+            body: JSON.stringify({ error: 'Besked ikke fundet eller ingen adgang' })
+          };
+        }
+
+        console.log('Message moved to:', folderName);
         return {
           statusCode: 200,
           body: JSON.stringify({ success: true })
