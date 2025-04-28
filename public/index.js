@@ -1,111 +1,297 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const sendButton = document.querySelector('.send-button');
-  const senderEmail = document.querySelector('.sender-email');
-  const recipientEmail = document.querySelector('.recipient-email');
-  const messageContent = document.querySelector('.message-content');
+  console.log('DOM fuldt indlæst, tjekker elementer...');
 
-  if (!sendButton) {
-    console.error('Send-knap (.send-button) blev ikke fundet i DOM');
-    return;
-  }
-  if (!senderEmail) {
-    console.error('Afsender e-mail (.sender-email) blev ikke fundet i DOM');
-    return;
-  }
-  if (!recipientEmail) {
-    console.error('Modtager e-mail (.recipient-email) blev ikke fundet i DOM');
-    return;
-  }
-  if (!messageContent) {
-    console.error('Beskedindhold (.message-content) blev ikke fundet i DOM');
+  const loginForm = document.querySelector('#login-form');
+  const registerForm = document.querySelector('#register-form');
+  const messageForm = document.querySelector('#message-form');
+  const folderForm = document.querySelector('#folder-form');
+  const logoutButton = document.querySelector('#logout-button');
+  const loginSection = document.querySelector('#login-section');
+  const appSection = document.querySelector('#app-section');
+  const folderMessagesSection = document.querySelector('#folder-messages-section');
+
+  if (!loginForm || !registerForm || !messageForm || !folderForm || !logoutButton || !loginSection || !appSection || !folderMessagesSection) {
+    console.error('Et eller flere kritiske elementer mangler i DOM');
     return;
   }
 
-  sendButton.addEventListener('click', sendMessage);
-  console.log('Send-knap fundet og event listener tilføjet');
+  let currentUserEmail = localStorage.getItem('currentUserEmail');
 
-  // Kun kør getFolderMessages, hvis sender-email findes
-  getFolderMessages('Sent');
-  getFolderMessages('Received');
-});
-
-async function sendMessage() {
-  const sendButton = document.querySelector('.send-button');
-  const sender = document.querySelector('.sender-email');
-  const recipient = document.querySelector('.recipient-email');
-  const content = document.querySelector('.message-content');
-
-  if (!sendButton || !sender || !recipient || !content) {
-    console.error('Et eller flere elementer mangler under afsendelse');
-    return;
+  // Tjek login status
+  if (currentUserEmail) {
+    loginSection.style.display = 'none';
+    appSection.style.display = 'block';
+    folderMessagesSection.style.display = 'none';
+    console.log('Bruger logget ind:', currentUserEmail);
+    getFolders();
+    getMessages();
+  } else {
+    loginSection.style.display = 'block';
+    appSection.style.display = 'none';
+    folderMessagesSection.style.display = 'none';
+    console.log('Ingen bruger logget ind');
   }
 
-  sendButton.disabled = true;
+  // Login
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.querySelector('#login-email').value;
+    const password = document.querySelector('#login-password').value;
+    try {
+      const response = await fetch('/functions/chat', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'login', email, password }),
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-  try {
-    const response = await fetch('/.netlify/functions/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        sender: sender.value,
-        recipient: recipient.value,
-        content: content.value
-      }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Login fejl');
+      }
 
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.error || 'Fejl ved afsendelse');
+      currentUserEmail = email;
+      localStorage.setItem('currentUserEmail', email);
+      loginSection.style.display = 'none';
+      appSection.style.display = 'block';
+      console.log('Bruger logget ind:', email);
+      getFolders();
+      getMessages();
+    } catch (error) {
+      console.error('Login fejl:', error);
+      alert('Login mislykkedes: ' + error.message);
+    }
+  });
+
+  // Registrering
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.querySelector('#register-email').value;
+    const password = document.querySelector('#register-password').value;
+    try {
+      const response = await fetch('/functions/chat', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'register', email, password }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Registreringsfejl');
+      }
+
+      currentUserEmail = email;
+      localStorage.setItem('currentUserEmail', email);
+      loginSection.style.display = 'none';
+      appSection.style.display = 'block';
+      console.log('Bruger registreret:', email);
+      getFolders();
+      getMessages();
+    } catch (error) {
+      console.error('Registreringsfejl:', error);
+      alert('Registrering mislykkedes: ' + error.message);
+    }
+  });
+
+  // Logout
+  logoutButton.addEventListener('click', () => {
+    currentUserEmail = null;
+    localStorage.removeItem('currentUserEmail');
+    loginSection.style.display = 'block';
+    appSection.style.display = 'none';
+    folderMessagesSection.style.display = 'none';
+    console.log('Bruger logget ud');
+  });
+
+  // Send besked
+  messageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const content = document.querySelector('#message-content').value;
+    const recipients = document.querySelector('#message-recipients').value.split(',').map(r => r.trim());
+    const secretKey = document.querySelector('#message-secret-key').value;
+
+    if (!content || !recipients.length || !secretKey || !currentUserEmail) {
+      console.error('Manglende beskedoplysninger eller bruger ikke logget ind');
+      alert('Udfyld alle felter og log ind');
+      return;
     }
 
-    console.log('Besked sendt succesfuldt:', result);
-    content.value = '';
-    await getFolderMessages('Sent');
-  } catch (error) {
-    console.error('Fejl ved afsendelse:', error);
-    alert('Kunne ikke sende besked: ' + error.message);
-  } finally {
-    sendButton.disabled = false;
-  }
-}
+    try {
+      const encryptedContent = CryptoJS.AES.encrypt(content, secretKey).toString();
+      for (const recipient of recipients) {
+        const response = await fetch('/functions/chat', {
+          method: 'POST',
+          body: JSON.stringify({
+            sender: currentUserEmail,
+            recipient: recipient,
+            content: encryptedContent
+          }),
+          headers: { 'Content-Type': 'application/json' }
+        });
 
-async function getFolderMessages(folderName) {
-  const emailInput = document.querySelector('.sender-email');
-  if (!emailInput) {
-    console.error('Afsender e-mail (.sender-email) mangler i getFolderMessages');
-    return;
-  }
-  const email = emailInput.value;
-  if (!email) {
-    console.warn(`Ingen e-mail angivet for ${folderName} beskeder`);
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Fejl ved afsendelse');
+        }
+      }
+
+      console.log('Besked sendt succesfuldt');
+      document.querySelector('#message-content').value = '';
+      document.querySelector('#message-recipients').value = '';
+      document.querySelector('#message-secret-key').value = '';
+      getMessages();
+    } catch (error) {
+      console.error('Fejl ved afsendelse:', error);
+      alert('Kunne ikke sende besked: ' + error.message);
+    }
+  });
+
+  // Opret folder
+  folderForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const folderName = document.querySelector('#folder-name').value;
+
+    if (!folderName || !currentUserEmail) {
+      console.error('Manglende foldernavn eller bruger ikke logget ind');
+      alert('Udfyld foldernavn og log ind');
+      return;
+    }
+
+    try {
+      const response = await fetch('/functions/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'createFolder',
+          email: currentUserEmail,
+          folderName
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Fejl ved oprettelse af folder');
+      }
+
+      console.log('Folder oprettet:', folderName);
+      document.querySelector('#folder-name').value = '';
+      getFolders();
+    } catch (error) {
+      console.error('Fejl ved oprettelse af folder:', error);
+      alert('Kunne ikke oprette folder: ' + error.message);
+    }
+  });
+});
+
+async function getFolders() {
+  if (!currentUserEmail) {
+    console.warn('Ingen bruger logget ind, kan ikke hente foldere');
     return;
   }
 
   try {
     const response = await fetch(
-      `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
+      `/functions/chat?action=getFolders&email=${encodeURIComponent(currentUserEmail)}`
+    );
+    const folders = await response.json();
+
+    console.log('Hentede foldere:', folders);
+
+    const foldersDiv = document.querySelector('#folders');
+    if (foldersDiv) {
+      foldersDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Folders</h3>';
+      folders.forEach(folder => {
+        const folderLink = document.createElement('div');
+        folderLink.innerHTML = `<a href="#" class="folder-link" data-folder="${folder}">${folder}</a>`;
+        foldersDiv.appendChild(folderLink);
+      });
+
+      document.querySelectorAll('.folder-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const folderName = e.target.dataset.folder;
+          showFolderMessages(folderName);
+        });
+      });
+    } else {
+      console.error('Folder container (#folders) blev ikke fundet');
+    }
+  } catch (error) {
+    console.error('Fejl ved hentning af foldere:', error);
+  }
+}
+
+async function getMessages() {
+  if (!currentUserEmail) {
+    console.warn('Ingen bruger logget ind, kan ikke hente beskeder');
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `/functions/chat?action=getMessages&email=${encodeURIComponent(currentUserEmail)}`
     );
     const messages = await response.json();
 
-    console.log(`Hentede beskeder for ${folderName}:`, messages);
+    console.log('Hentede beskeder:', messages);
 
-    const messageList = document.querySelector(`.${folderName.toLowerCase()}-messages`);
-    if (messageList) {
-      messageList.innerHTML = '';
+    const messagesDiv = document.querySelector('#messages');
+    if (messagesDiv) {
+      messagesDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Messages</h3>';
       messages.forEach(msg => {
-        const li = document.createElement('li');
+        const li = document.createElement('div');
         li.innerHTML = `
           ${msg.content}
-          <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
+          <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
         `;
-        messageList.appendChild(li);
+        messagesDiv.appendChild(li);
       });
     } else {
-      console.error(`Beskedliste (.${folderName.toLowerCase()}-messages) blev ikke fundet`);
+      console.error('Besked container (#messages) blev ikke fundet');
+    }
+  } catch (error) {
+    console.error('Fejl ved hentning af beskeder:', error);
+  }
+}
+
+async function showFolderMessages(folderName) {
+  if (!currentUserEmail) {
+    console.warn('Ingen bruger logget ind, kan ikke hente folder beskeder');
+    return;
+  }
+
+  document.querySelector('#app-section').style.display = 'none';
+  document.querySelector('#folder-messages-section').style.display = 'block';
+
+  try {
+    const response = await fetch(
+      `/functions/chat?action=getFolderMessages&email=${encodeURIComponent(currentUserEmail)}&folderName=${encodeURIComponent(folderName)}`
+    );
+    const messages = await response.json();
+
+    console.log(`Hentede beskeder for folder ${folderName}:`, messages);
+
+    const folderMessagesDiv = document.querySelector('#folder-messages');
+    if (folderMessagesDiv) {
+      folderMessagesDiv.innerHTML = `<h3 class="text-xl font-bold mb-2">${folderName} Messages</h3>`;
+      messages.forEach(msg => {
+        const li = document.createElement('div');
+        li.innerHTML = `
+          ${msg.content}
+          <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
+        `;
+        folderMessagesDiv.appendChild(li);
+      });
+    } else {
+      console.error('Folder besked container (#folder-messages) blev ikke fundet');
     }
   } catch (error) {
     console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
   }
+}
+
+function showApp() {
+  document.querySelector('#app-section').style.display = 'block';
+  document.querySelector('#folder-messages-section').style.display = 'none';
 }
 
 function decryptMessage(messageId, encryptedContent) {
@@ -130,7 +316,7 @@ document.addEventListener('click', (event) => {
   if (event.target.classList.contains('decryptButton')) {
     console.log('Dekrypt-knap klikket');
     const messageId = event.target.dataset.messageId;
-    const encryptedContent = event.target.parentElement.textContent.trim().split(' ')[0];
+    const encryptedContent = event.target.dataset.content;
     decryptMessage(messageId, encryptedContent);
   }
 });
