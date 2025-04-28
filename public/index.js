@@ -1,3 +1,5 @@
+let currentUserEmail = null; // Global variabel
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM fuldt indlæst, tjekker elementer...');
 
@@ -15,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  let currentUserEmail = localStorage.getItem('currentUserEmail');
+  // Initialiser currentUserEmail fra localStorage
+  currentUserEmail = localStorage.getItem('currentUserEmail');
 
   // Tjek login status
   if (currentUserEmail) {
@@ -249,6 +252,10 @@ async function getFolders() {
       throw new Error('Ugyldig JSON-respons fra serveren');
     }
 
+    if (!response.ok) {
+      throw new Error(`Serverfejl: ${response.status}`);
+    }
+
     console.log('Hentede foldere:', folders);
 
     const foldersDiv = document.querySelector('#folders');
@@ -272,6 +279,7 @@ async function getFolders() {
     }
   } catch (error) {
     console.error('Fejl ved hentning af foldere:', error);
+    alert('Kunne ikke hente foldere: ' + error.message);
   }
 }
 
@@ -298,6 +306,10 @@ async function getMessages() {
       throw new Error('Ugyldig JSON-respons fra serveren');
     }
 
+    if (!response.ok) {
+      throw new Error(`Serverfejl: ${response.status}`);
+    }
+
     console.log('Hentede beskeder:', messages);
 
     const messagesDiv = document.querySelector('#messages');
@@ -316,6 +328,7 @@ async function getMessages() {
     }
   } catch (error) {
     console.error('Fejl ved hentning af beskeder:', error);
+    alert('Kunne ikke hente beskeder: ' + error.message);
   }
 }
 
@@ -345,6 +358,10 @@ async function showFolderMessages(folderName) {
       throw new Error('Ugyldig JSON-respons fra serveren');
     }
 
+    if (!response.ok) {
+      throw new Error(`Serverfejl: ${response.status}`);
+    }
+
     console.log(`Hentede beskeder for folder ${folderName}:`, messages);
 
     const folderMessagesDiv = document.querySelector('#folder-messages');
@@ -363,6 +380,7 @@ async function showFolderMessages(folderName) {
     }
   } catch (error) {
     console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
+    alert(`Kunne ikke hente beskeder for ${folderName}: ` + error.message);
   }
 }
 
