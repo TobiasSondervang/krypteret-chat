@@ -1,31 +1,55 @@
 document.addEventListener('DOMContentLoaded', () => {
     const sendButton = document.querySelector('.send-button');
-    if (sendButton) {
-      sendButton.addEventListener('click', sendMessage);
-      console.log('Send-knap fundet og event listener tilføjet');
-    } else {
+    const senderEmail = document.querySelector('.sender-email');
+    const recipientEmail = document.querySelector('.recipient-email');
+    const messageContent = document.querySelector('.message-content');
+
+    if (!sendButton) {
       console.error('Send-knap (.send-button) blev ikke fundet i DOM');
+      return;
     }
+    if (!senderEmail) {
+      console.error('Afsender e-mail (.sender-email) blev ikke fundet i DOM');
+      return;
+    }
+    if (!recipientEmail) {
+      console.error('Modtager e-mail (.recipient-email) blev ikke fundet i DOM');
+      return;
+    }
+    if (!messageContent) {
+      console.error('Beskedindhold (.message-content) blev ikke fundet i DOM');
+      return;
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    console.log('Send-knap fundet og event listener tilføjet');
+
+    // Kun kør getFolderMessages, hvis sender-email findes
     getFolderMessages('Sent');
     getFolderMessages('Received');
   });
 
   async function sendMessage() {
     const sendButton = document.querySelector('.send-button');
-    if (!sendButton) {
-      console.error('Send-knap (.send-button) mangler under afsendelse');
+    const sender = document.querySelector('.sender-email');
+    const recipient = document.querySelector('.recipient-email');
+    const content = document.querySelector('.message-content');
+
+    if (!sendButton || !sender || !recipient || !content) {
+      console.error('Et eller flere elementer mangler under afsendelse');
       return;
     }
-    sendButton.disabled = true;
 
-    const sender = document.querySelector('.sender-email').value;
-    const recipient = document.querySelector('.recipient-email').value;
-    const content = document.querySelector('.message-content').value;
+    sendButton.disabled = true;
 
     try {
       const response = await fetch('/.netlify/functions/chat', {
         method: 'POST',
-        body: JSON.stringify({ sender, recipient, content }),
+        body: JSON.stringify({
+          sender: sender.value,
+          recipient: recipient.value,
+          content: content.value
+        }),
         headers: { 'Content-Type': 'application/json' }
       });
 
@@ -35,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       console.log('Besked sendt succesfuldt:', result);
-      document.querySelector('.message-content').value = '';
+      content.value = '';
       await getFolderMessages('Sent');
     } catch (error) {
       console.error('Fejl ved afsendelse:', error);
@@ -46,7 +70,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function getFolderMessages(folderName) {
-    const email = document.querySelector('.sender-email').value;
+    const emailInput = document.querySelector('.sender-email');
+    if (!emailInput) {
+      console.error('Afsender e-mail (.sender-email) mangler i getFolderMessages');
+      return;
+    }
+    const email = emailInput.value;
+    if (!email) {
+      console.warn(`Ingen e-mail angivet for ${folderName} beskeder`);
+      return;
+    }
+
     try {
       const response = await fetch(
         `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
