@@ -1,136 +1,136 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const sendButton = document.querySelector('.send-button');
-    const senderEmail = document.querySelector('.sender-email');
-    const recipientEmail = document.querySelector('.recipient-email');
-    const messageContent = document.querySelector('.message-content');
+  const sendButton = document.querySelector('.send-button');
+  const senderEmail = document.querySelector('.sender-email');
+  const recipientEmail = document.querySelector('.recipient-email');
+  const messageContent = document.querySelector('.message-content');
 
-    if (!sendButton) {
-      console.error('Send-knap (.send-button) blev ikke fundet i DOM');
-      return;
+  if (!sendButton) {
+    console.error('Send-knap (.send-button) blev ikke fundet i DOM');
+    return;
+  }
+  if (!senderEmail) {
+    console.error('Afsender e-mail (.sender-email) blev ikke fundet i DOM');
+    return;
+  }
+  if (!recipientEmail) {
+    console.error('Modtager e-mail (.recipient-email) blev ikke fundet i DOM');
+    return;
+  }
+  if (!messageContent) {
+    console.error('Beskedindhold (.message-content) blev ikke fundet i DOM');
+    return;
+  }
+
+  sendButton.addEventListener('click', sendMessage);
+  console.log('Send-knap fundet og event listener tilføjet');
+
+  // Kun kør getFolderMessages, hvis sender-email findes
+  getFolderMessages('Sent');
+  getFolderMessages('Received');
+});
+
+async function sendMessage() {
+  const sendButton = document.querySelector('.send-button');
+  const sender = document.querySelector('.sender-email');
+  const recipient = document.querySelector('.recipient-email');
+  const content = document.querySelector('.message-content');
+
+  if (!sendButton || !sender || !recipient || !content) {
+    console.error('Et eller flere elementer mangler under afsendelse');
+    return;
+  }
+
+  sendButton.disabled = true;
+
+  try {
+    const response = await fetch('/.netlify/functions/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        sender: sender.value,
+        recipient: recipient.value,
+        content: content.value
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || 'Fejl ved afsendelse');
     }
-    if (!senderEmail) {
-      console.error('Afsender e-mail (.sender-email) blev ikke fundet i DOM');
-      return;
-    }
-    if (!recipientEmail) {
-      console.error('Modtager e-mail (.recipient-email) blev ikke fundet i DOM');
-      return;
-    }
-    if (!messageContent) {
-      console.error('Beskedindhold (.message-content) blev ikke fundet i DOM');
-      return;
-    }
 
-    sendButton.addEventListener('click', sendMessage);
-    console.log('Send-knap fundet og event listener tilføjet');
+    console.log('Besked sendt succesfuldt:', result);
+    content.value = '';
+    await getFolderMessages('Sent');
+  } catch (error) {
+    console.error('Fejl ved afsendelse:', error);
+    alert('Kunne ikke sende besked: ' + error.message);
+  } finally {
+    sendButton.disabled = false;
+  }
+}
 
-    // Kun kør getFolderMessages, hvis sender-email findes
-    getFolderMessages('Sent');
-    getFolderMessages('Received');
-  });
+async function getFolderMessages(folderName) {
+  const emailInput = document.querySelector('.sender-email');
+  if (!emailInput) {
+    console.error('Afsender e-mail (.sender-email) mangler i getFolderMessages');
+    return;
+  }
+  const email = emailInput.value;
+  if (!email) {
+    console.warn(`Ingen e-mail angivet for ${folderName} beskeder`);
+    return;
+  }
 
-  async function sendMessage() {
-    const sendButton = document.querySelector('.send-button');
-    const sender = document.querySelector('.sender-email');
-    const recipient = document.querySelector('.recipient-email');
-    const content = document.querySelector('.message-content');
+  try {
+    const response = await fetch(
+      `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
+    );
+    const messages = await response.json();
 
-    if (!sendButton || !sender || !recipient || !content) {
-      console.error('Et eller flere elementer mangler under afsendelse');
-      return;
-    }
+    console.log(`Hentede beskeder for ${folderName}:`, messages);
 
-    sendButton.disabled = true;
-
-    try {
-      const response = await fetch('/.netlify/functions/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          sender: sender.value,
-          recipient: recipient.value,
-          content: content.value
-        }),
-        headers: { 'Content-Type': 'application/json' }
+    const messageList = document.querySelector(`.${folderName.toLowerCase()}-messages`);
+    if (messageList) {
+      messageList.innerHTML = '';
+      messages.forEach(msg => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          ${msg.content}
+          <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
+        `;
+        messageList.appendChild(li);
       });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Fejl ved afsendelse');
-      }
-
-      console.log('Besked sendt succesfuldt:', result);
-      content.value = '';
-      await getFolderMessages('Sent');
-    } catch (error) {
-      console.error('Fejl ved afsendelse:', error);
-      alert('Kunne ikke sende besked: ' + error.message);
-    } finally {
-      sendButton.disabled = false;
+    } else {
+      console.error(`Beskedliste (.${folderName.toLowerCase()}-messages) blev ikke fundet`);
     }
+  } catch (error) {
+    console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
   }
+}
 
-  async function getFolderMessages(folderName) {
-    const emailInput = document.querySelector('.sender-email');
-    if (!emailInput) {
-      console.error('Afsender e-mail (.sender-email) mangler i getFolderMessages');
-      return;
-    }
-    const email = emailInput.value;
-    if (!email) {
-      console.warn(`Ingen e-mail angivet for ${folderName} beskeder`);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/.netlify/functions/chat?action=getFolderMessages&email=${encodeURIComponent(email)}&folderName=${folderName}`
-      );
-      const messages = await response.json();
-
-      console.log(`Hentede beskeder for ${folderName}:`, messages);
-
-      const messageList = document.querySelector(`.${folderName.toLowerCase()}-messages`);
-      if (messageList) {
-        messageList.innerHTML = '';
-        messages.forEach(msg => {
-          const li = document.createElement('li');
-          li.innerHTML = `
-            ${msg.content}
-            <button class="decryptButton" data-message-id="${msg._id}">Dekrypt</button>
-          `;
-          messageList.appendChild(li);
-        });
-      } else {
-        console.error(`Beskedliste (.${folderName.toLowerCase()}-messages) blev ikke fundet`);
-      }
-    } catch (error) {
-      console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
-    }
+function decryptMessage(messageId, encryptedContent) {
+  console.log('Dekrypterer besked ID:', messageId);
+  try {
+    const key = prompt('Indtast dekrypteringsnøgle');
+    if (!key) throw new Error('Ingen nøgle angivet');
+    const bytes = CryptoJS.AES.decrypt(encryptedContent, key);
+    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    if (!decrypted) throw new Error('Ugyldig nøgle eller indhold');
+    console.log('Dekrypteret besked:', decrypted);
+    alert('Dekrypteret besked: ' + decrypted);
+    return decrypted;
+  } catch (error) {
+    console.error('Dekrypteringsfejl:', error);
+    alert('Dekryptering mislykkedes: ' + error.message);
+    return null;
   }
+}
 
-  function decryptMessage(messageId, encryptedContent) {
-    console.log('Dekrypterer besked ID:', messageId);
-    try {
-      const key = prompt('Indtast dekrypteringsnøgle');
-      if (!key) throw new Error('Ingen nøgle angivet');
-      const bytes = CryptoJS.AES.decrypt(encryptedContent, key);
-      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-      if (!decrypted) throw new Error('Ugyldig nøgle eller indhold');
-      console.log('Dekrypteret besked:', decrypted);
-      alert('Dekrypteret besked: ' + decrypted);
-      return decrypted;
-    } catch (error) {
-      console.error('Dekrypteringsfejl:', error);
-      alert('Dekryptering mislykkedes: ' + error.message);
-      return null;
-    }
+document.addEventListener('click', (event) => {
+  if (event.target.classList.contains('decryptButton')) {
+    console.log('Dekrypt-knap klikket');
+    const messageId = event.target.dataset.messageId;
+    const encryptedContent = event.target.parentElement.textContent.trim().split(' ')[0];
+    decryptMessage(messageId, encryptedContent);
   }
-
-  document.addEventListener('click', (event) => {
-    if (event.target.classList.contains('decryptButton')) {
-      console.log('Dekrypt-knap klikket');
-      const messageId = event.target.dataset.messageId;
-      const encryptedContent = event.target.parentElement.textContent.trim().split(' ')[0];
-      decryptMessage(messageId, encryptedContent);
-    }
-  });
+});
