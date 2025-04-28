@@ -44,9 +44,20 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      const result = await response.json();
+      console.log('Login respons status:', response.status, response.statusText);
+      const rawResponse = await response.text();
+      console.log('Rå respons:', rawResponse);
+
+      let result;
+      try {
+        result = JSON.parse(rawResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+        throw new Error('Ugyldig JSON-respons fra serveren');
+      }
+
       if (!response.ok) {
-        throw new Error(result.error || 'Login fejl');
+        throw new Error(result.error || `Serverfejl: ${response.status}`);
       }
 
       currentUserEmail = email;
@@ -74,9 +85,20 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      const result = await response.json();
+      console.log('Registrering respons status:', response.status, response.statusText);
+      const rawResponse = await response.text();
+      console.log('Rå respons:', rawResponse);
+
+      let result;
+      try {
+        result = JSON.parse(rawResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+        throw new Error('Ugyldig JSON-respons fra serveren');
+      }
+
       if (!response.ok) {
-        throw new Error(result.error || 'Registreringsfejl');
+        throw new Error(result.error || `Serverfejl: ${response.status}`);
       }
 
       currentUserEmail = email;
@@ -128,9 +150,20 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' }
         });
 
-        const result = await response.json();
+        console.log('Besked respons status:', response.status, response.statusText);
+        const rawResponse = await response.text();
+        console.log('Rå respons:', rawResponse);
+
+        let result;
+        try {
+          result = JSON.parse(rawResponse);
+        } catch (jsonError) {
+          console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+          throw new Error('Ugyldig JSON-respons fra serveren');
+        }
+
         if (!response.ok) {
-          throw new Error(result.error || 'Fejl ved afsendelse');
+          throw new Error(result.error || `Serverfejl: ${response.status}`);
         }
       }
 
@@ -167,9 +200,20 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      const result = await response.json();
+      console.log('Folder respons status:', response.status, response.statusText);
+      const rawResponse = await response.text();
+      console.log('Rå respons:', rawResponse);
+
+      let result;
+      try {
+        result = JSON.parse(rawResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+        throw new Error('Ugyldig JSON-respons fra serveren');
+      }
+
       if (!response.ok) {
-        throw new Error(result.error || 'Fejl ved oprettelse af folder');
+        throw new Error(result.error || `Serverfejl: ${response.status}`);
       }
 
       console.log('Folder oprettet:', folderName);
@@ -192,7 +236,18 @@ async function getFolders() {
     const response = await fetch(
       `/functions/chat?action=getFolders&email=${encodeURIComponent(currentUserEmail)}`
     );
-    const folders = await response.json();
+
+    console.log('Get folders respons status:', response.status, response.statusText);
+    const rawResponse = await response.text();
+    console.log('Rå respons:', rawResponse);
+
+    let folders;
+    try {
+      folders = JSON.parse(rawResponse);
+    } catch (jsonError) {
+      console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+      throw new Error('Ugyldig JSON-respons fra serveren');
+    }
 
     console.log('Hentede foldere:', folders);
 
@@ -230,7 +285,18 @@ async function getMessages() {
     const response = await fetch(
       `/functions/chat?action=getMessages&email=${encodeURIComponent(currentUserEmail)}`
     );
-    const messages = await response.json();
+
+    console.log('Get messages respons status:', response.status, response.statusText);
+    const rawResponse = await response.text();
+    console.log('Rå respons:', rawResponse);
+
+    let messages;
+    try {
+      messages = JSON.parse(rawResponse);
+    } catch (jsonError) {
+      console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+      throw new Error('Ugyldig JSON-respons fra serveren');
+    }
 
     console.log('Hentede beskeder:', messages);
 
@@ -266,7 +332,18 @@ async function showFolderMessages(folderName) {
     const response = await fetch(
       `/functions/chat?action=getFolderMessages&email=${encodeURIComponent(currentUserEmail)}&folderName=${encodeURIComponent(folderName)}`
     );
-    const messages = await response.json();
+
+    console.log('Get folder messages respons status:', response.status, response.statusText);
+    const rawResponse = await response.text();
+    console.log('Rå respons:', rawResponse);
+
+    let messages;
+    try {
+      messages = JSON.parse(rawResponse);
+    } catch (jsonError) {
+      console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+      throw new Error('Ugyldig JSON-respons fra serveren');
+    }
 
     console.log(`Hentede beskeder for folder ${folderName}:`, messages);
 
