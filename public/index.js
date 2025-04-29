@@ -1,5 +1,27 @@
 let currentUserEmail = null; // Global variabel
 
+// Funktion til at validere adgangskode
+function validatePassword(password) {
+  const minLength = password.length >= 8;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
+  if (!minLength) {
+    return "Adgangskoden skal være mindst 8 tegn lang.";
+  }
+  if (!hasUpperCase) {
+    return "Adgangskoden skal indeholde mindst ét stort bogstav.";
+  }
+  if (!hasLowerCase) {
+    return "Adgangskoden skal indeholde mindst ét lille bogstav.";
+  }
+  if (!hasNumber) {
+    return "Adgangskoden skal indeholde mindst ét tal (0-9).";
+  }
+  return null; // Ingen fejl
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOM fuldt indlæst, tjekker elementer...');
 
@@ -83,6 +105,15 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const email = document.querySelector('#register-email').value;
     const password = document.querySelector('#register-password').value;
+
+    // Valider adgangskode
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      console.warn('Adgangskodevalidering fejlede:', passwordError);
+      alert(passwordError);
+      return;
+    }
+
     try {
       const response = await fetch('/functions/chat', {
         method: 'POST',
@@ -420,7 +451,7 @@ async function getMessages() {
     }
   } catch (error) {
     console.error('Fejl ved hentning af beskeder:', error);
-    alert('Kunne ikke hente beskeder: ' + error.message);
+    alert('Kunde ikke hente beskeder: ' + error.message);
   }
 }
 
@@ -598,7 +629,7 @@ async function moveMessage(messageId, folderName, context) {
     }
   } catch (error) {
     console.error('Fejl ved flytning af besked:', error);
-    alert('Kunne ikke flytte besked: ' + error.message);
+    alert('Kunde ikke flytte besked: ' + error.message);
   }
 }
 
