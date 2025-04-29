@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!loginForm || !registerForm || !messageForm || !folderForm || !logoutButton || !deleteUserButton || !loginSection || !appSection || !folderMessagesSection) {
     console.error('Et eller flere kritiske elementer mangler i DOM');
+    alert('Fejl: Manglende elementer i brugerfladen');
     return;
   }
 
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('Login respons status:', response.status, response.statusText);
+      console.log('Log ind respons status:', response.status, response.statusText);
       const rawResponse = await response.text();
       console.log('Rå respons:', rawResponse);
 
@@ -57,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         result = JSON.parse(rawResponse);
       } catch (jsonError) {
         console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-        throw new Error('Ugyldig JSON-respons fra serveren');
+        throw new Error('Ugyldig serverrespons');
       }
 
       if (!response.ok) {
@@ -72,12 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
       getFolders();
       getMessages();
     } catch (error) {
-      console.error('Login fejl:', error);
-      alert('Login mislykkedes: ' + error.message);
+      console.error('Log ind fejl:', error);
+      alert('Log ind mislykkedes: ' + error.message);
     }
   });
 
-  // Registrering
+  // Opret konto
   registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.querySelector('#register-email').value;
@@ -89,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('Registrering respons status:', response.status, response.statusText);
+      console.log('Opret konto respons status:', response.status, response.statusText);
       const rawResponse = await response.text();
       console.log('Rå respons:', rawResponse);
 
@@ -98,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         result = JSON.parse(rawResponse);
       } catch (jsonError) {
         console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-        throw new Error('Ugyldig JSON-respons fra serveren');
+        throw new Error('Ugyldig serverrespons');
       }
 
       if (!response.ok) {
@@ -109,16 +110,16 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('currentUserEmail', email);
       loginSection.style.display = 'none';
       appSection.style.display = 'block';
-      console.log('Bruger registreret:', email);
+      console.log('Bruger oprettet:', email);
       getFolders();
       getMessages();
     } catch (error) {
-      console.error('Registreringsfejl:', error);
-      alert('Registrering mislykkedes: ' + error.message);
+      console.error('Opret konto fejl:', error);
+      alert('Opret konto mislykkedes: ' + error.message);
     }
   });
 
-  // Logout
+  // Log ud
   logoutButton.addEventListener('click', () => {
     currentUserEmail = null;
     localStorage.removeItem('currentUserEmail');
@@ -128,15 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Bruger logget ud');
   });
 
-  // Fjern bruger
+  // Fjern konto
   deleteUserButton.addEventListener('click', async () => {
     if (!currentUserEmail) {
-      console.warn('Ingen bruger logget ind, kan ikke slette bruger');
-      alert('Log ind for at slette bruger');
+      console.warn('Ingen bruger logget ind, kan ikke slette konto');
+      alert('Log ind for at slette konto');
       return;
     }
 
-    const confirmDelete = confirm('Er du sikker på, at du vil slette din bruger og alle tilknyttede mapper? Denne handling kan ikke fortrydes.');
+    const confirmDelete = confirm('Er du sikker på, at du vil slette din konto og alle tilknyttede mapper? Denne handling kan ikke fortrydes.');
     if (!confirmDelete) {
       console.log('Bruger annullerede sletning');
       return;
@@ -152,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('Delete user respons status:', response.status, response.statusText);
+      console.log('Fjern konto respons status:', response.status, response.statusText);
       const rawResponse = await response.text();
       console.log('Rå respons:', rawResponse);
 
@@ -161,23 +162,23 @@ document.addEventListener('DOMContentLoaded', () => {
         result = JSON.parse(rawResponse);
       } catch (jsonError) {
         console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-        throw new Error('Ugyldig JSON-respons fra serveren');
+        throw new Error('Ugyldig serverrespons');
       }
 
       if (!response.ok) {
         throw new Error(result.error || `Serverfejl: ${response.status}`);
       }
 
-      console.log('Bruger slettet:', currentUserEmail);
+      console.log('Konto slettet:', currentUserEmail);
       currentUserEmail = null;
       localStorage.removeItem('currentUserEmail');
       loginSection.style.display = 'block';
       appSection.style.display = 'none';
       folderMessagesSection.style.display = 'none';
-      alert('Bruger og tilknyttede mapper er slettet.');
+      alert('Konto og tilknyttede mapper er slettet.');
     } catch (error) {
-      console.error('Fejl ved sletning af bruger:', error);
-      alert('Kunne ikke slette bruger: ' + error.message);
+      console.error('Fejl ved sletning af konto:', error);
+      alert('Kunne ikke slette konto: ' + error.message);
     }
   });
 
@@ -216,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
           result = JSON.parse(rawResponse);
         } catch (jsonError) {
           console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-          throw new Error('Ugyldig JSON-respons fra serveren');
+          throw new Error('Ugyldig serverrespons');
         }
 
         if (!response.ok) {
@@ -230,19 +231,19 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelector('#message-secret-key').value = '';
       getMessages();
     } catch (error) {
-      console.error('Fejl ved afsendelse:', error);
+      console.error('Fejl ved afsendelse af besked:', error);
       alert('Kunne ikke sende besked: ' + error.message);
     }
   });
 
-  // Opret folder
+  // Opret mappe
   folderForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const folderName = document.querySelector('#folder-name').value;
 
     if (!folderName || !currentUserEmail) {
-      console.error('Manglende foldernavn eller bruger ikke logget ind');
-      alert('Udfyld foldernavn og log ind');
+      console.error('Manglende mappenavn eller bruger ikke logget ind');
+      alert('Udfyld mappenavn og log ind');
       return;
     }
 
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('Folder respons status:', response.status, response.statusText);
+      console.log('Opret mappe respons status:', response.status, response.statusText);
       const rawResponse = await response.text();
       console.log('Rå respons:', rawResponse);
 
@@ -266,26 +267,26 @@ document.addEventListener('DOMContentLoaded', () => {
         result = JSON.parse(rawResponse);
       } catch (jsonError) {
         console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-        throw new Error('Ugyldig JSON-respons fra serveren');
+        throw new Error('Ugyldig serverrespons');
       }
 
       if (!response.ok) {
         throw new Error(result.error || `Serverfejl: ${response.status}`);
       }
 
-      console.log('Folder oprettet:', folderName);
+      console.log('Mappe oprettet:', folderName);
       document.querySelector('#folder-name').value = '';
       getFolders();
     } catch (error) {
-      console.error('Fejl ved oprettelse af folder:', error);
-      alert('Kunne ikke oprette folder: ' + error.message);
+      console.error('Fejl ved oprettelse af mappe:', error);
+      alert('Kunne ikke oprette mappe: ' + error.message);
     }
   });
 });
 
 async function getFolders() {
   if (!currentUserEmail) {
-    console.warn('Ingen bruger logget ind, kan ikke hente foldere');
+    console.warn('Ingen bruger logget ind, kan ikke hente mapper');
     return;
   }
 
@@ -294,7 +295,7 @@ async function getFolders() {
       `/functions/chat?action=getFolders&email=${encodeURIComponent(currentUserEmail)}`
     );
 
-    console.log('Get folders respons status:', response.status, response.statusText);
+    console.log('Hent mapper respons status:', response.status, response.statusText);
     const rawResponse = await response.text();
     console.log('Rå respons:', rawResponse);
 
@@ -303,39 +304,40 @@ async function getFolders() {
       folders = JSON.parse(rawResponse);
     } catch (jsonError) {
       console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-      throw new Error('Ugyldig JSON-respons fra serveren');
+      throw new Error('Ugyldig serverrespons');
     }
 
     if (!response.ok) {
       throw new Error(`Serverfejl: ${response.status}`);
     }
 
-    console.log('Hentede foldere:', folders);
+    console.log('Hentede mapper:', folders);
 
     const foldersDiv = document.querySelector('#folders');
     if (foldersDiv) {
-      foldersDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Folders</h3>';
+      foldersDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Mapper</h3>';
       folders.forEach(folder => {
-        const folderLink = document.createElement('div');
-        folderLink.innerHTML = `<a href="#" class="folder-link" data-folder="${folder}">${folder}</a>`;
-        foldersDiv.appendChild(folderLink);
+        const folderButton = document.createElement('div');
+        folderButton.innerHTML = `<button class="folder-button bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mb-2 w-full text-left" data-folder="${folder}">${folder}</button>`;
+        foldersDiv.appendChild(folderButton);
       });
 
-      document.querySelectorAll('.folder-link').forEach(link => {
-        link.addEventListener('click', (e) => {
+      document.querySelectorAll('.folder-button').forEach(button => {
+        button.addEventListener('click', (e) => {
           e.preventDefault();
           const folderName = e.target.dataset.folder;
           showFolderMessages(folderName);
         });
       });
     } else {
-      console.error('Folder container (#folders) blev ikke fundet');
+      console.error('Mappecontainer (#folders) blev ikke fundet');
+      alert('Fejl: Mappecontainer ikke fundet');
     }
 
-    return folders; // Returner foldere til brug i dropdowns
+    return folders; // Returner mapper til brug i dropdowns
   } catch (error) {
-    console.error('Fejl ved hentning af foldere:', error);
-    alert('Kunne ikke hente foldere: ' + error.message);
+    console.error('Fejl ved hentning af mapper:', error);
+    alert('Kunde ikke hente mapper: ' + error.message);
     return [];
   }
 }
@@ -351,7 +353,7 @@ async function getMessages() {
       `/functions/chat?action=getMessages&email=${encodeURIComponent(currentUserEmail)}`
     );
 
-    console.log('Get messages respons status:', response.status, response.statusText);
+    console.log('Hent beskeder respons status:', response.status, response.statusText);
     const rawResponse = await response.text();
     console.log('Rå respons:', rawResponse);
 
@@ -360,7 +362,7 @@ async function getMessages() {
       messages = JSON.parse(rawResponse);
     } catch (jsonError) {
       console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-      throw new Error('Ugyldig JSON-respons fra serveren');
+      throw new Error('Ugyldig serverrespons');
     }
 
     if (!response.ok) {
@@ -369,24 +371,25 @@ async function getMessages() {
 
     console.log('Hentede beskeder:', messages);
 
-    const folders = await getFolders(); // Hent foldere til dropdown
+    const folders = await getFolders(); // Hent mapper til dropdown
     const messagesDiv = document.querySelector('#messages');
     if (messagesDiv) {
-      messagesDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Messages</h3>';
+      messagesDiv.innerHTML = '<h3 class="text-xl font-bold mb-2">Beskeder</h3>';
       messages.forEach(msg => {
         const li = document.createElement('div');
+        li.classList.add('mb-4'); // Mellemrum mellem beskeder
         const danishTime = new Date(msg.timestamp).toLocaleString('da-DK');
         li.innerHTML = `
           <div>Fra: ${msg.sender}</div>
           <div>Sendt: ${danishTime}</div>
           <div>Indhold: ${msg.content}</div>
-          <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
-          <button class="deleteButton" data-message-id="${msg._id}">Slet</button>
-          <select class="moveFolderSelect" data-message-id="${msg._id}">
+          <button class="decryptButton bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypter</button>
+          <button class="deleteButton bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 mr-2" data-message-id="${msg._id}">Slet</button>
+          <select class="moveFolderSelect border border-gray-300 rounded-md p-2 mr-2" data-message-id="${msg._id}">
             <option value="">Vælg mappe</option>
             ${folders.map(folder => `<option value="${folder}">${folder}</option>`).join('')}
           </select>
-          <button class="moveButton" data-message-id="${msg._id}">Flyt</button>
+          <button class="moveButton bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600" data-message-id="${msg._id}">Flyt</button>
         `;
         messagesDiv.appendChild(li);
       });
@@ -412,7 +415,8 @@ async function getMessages() {
         });
       });
     } else {
-      console.error('Besked container (#messages) blev ikke fundet');
+      console.error('Beskedcontainer (#messages) blev ikke fundet');
+      alert('Fejl: Beskedcontainer ikke fundet');
     }
   } catch (error) {
     console.error('Fejl ved hentning af beskeder:', error);
@@ -422,7 +426,7 @@ async function getMessages() {
 
 async function showFolderMessages(folderName) {
   if (!currentUserEmail) {
-    console.warn('Ingen bruger logget ind, kan ikke hente folder beskeder');
+    console.warn('Ingen bruger logget ind, kan ikke hente mappebeskeder');
     return;
   }
 
@@ -434,7 +438,7 @@ async function showFolderMessages(folderName) {
       `/functions/chat?action=getFolderMessages&email=${encodeURIComponent(currentUserEmail)}&folderName=${encodeURIComponent(folderName)}`
     );
 
-    console.log('Get folder messages respons status:', response.status, response.statusText);
+    console.log('Hent mappebeskeder respons status:', response.status, response.statusText);
     const rawResponse = await response.text();
     console.log('Rå respons:', rawResponse);
 
@@ -443,33 +447,34 @@ async function showFolderMessages(folderName) {
       messages = JSON.parse(rawResponse);
     } catch (jsonError) {
       console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-      throw new Error('Ugyldig JSON-respons fra serveren');
+      throw new Error('Ugyldig serverrespons');
     }
 
     if (!response.ok) {
       throw new Error(`Serverfejl: ${response.status}`);
     }
 
-    console.log(`Hentede beskeder for folder ${folderName}:`, messages);
+    console.log(`Hentede beskeder for mappe ${folderName}:`, messages);
 
-    const folders = await getFolders(); // Hent foldere til dropdown
+    const folders = await getFolders(); // Hent mapper til dropdown
     const folderMessagesDiv = document.querySelector('#folder-messages');
     if (folderMessagesDiv) {
-      folderMessagesDiv.innerHTML = `<h3 class="text-xl font-bold mb-2">${folderName} Messages</h3>`;
+      folderMessagesDiv.innerHTML = `<h3 class="text-xl font-bold mb-2">${folderName} Beskeder</h3>`;
       messages.forEach(msg => {
         const li = document.createElement('div');
+        li.classList.add('mb-4'); // Mellemrum mellem beskeder
         const danishTime = new Date(msg.timestamp).toLocaleString('da-DK');
         li.innerHTML = `
           <div>Fra: ${msg.sender}</div>
           <div>Sendt: ${danishTime}</div>
           <div>Indhold: ${msg.content}</div>
-          <button class="decryptButton" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypt</button>
-          <button class="deleteButton" data-message-id="${msg._id}">Slet</button>
-          <select class="moveFolderSelect" data-message-id="${msg._id}">
+          <button class="decryptButton bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mr-2" data-message-id="${msg._id}" data-content="${msg.content}">Dekrypter</button>
+          <button class="deleteButton bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 mr-2" data-message-id="${msg._id}">Slet</button>
+          <select class="moveFolderSelect border border-gray-300 rounded-md p-2 mr-2" data-message-id="${msg._id}">
             <option value="">Vælg mappe</option>
             ${folders.map(folder => `<option value="${folder}">${folder}</option>`).join('')}
           </select>
-          <button class="moveButton" data-message-id="${msg._id}">Flyt</button>
+          <button class="moveButton bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600" data-message-id="${msg._id}">Flyt</button>
         `;
         folderMessagesDiv.appendChild(li);
       });
@@ -495,11 +500,12 @@ async function showFolderMessages(folderName) {
         });
       });
     } else {
-      console.error('Folder besked container (#folder-messages) blev ikke fundet');
+      console.error('Mappebeskedcontainer (#folder-messages) blev ikke fundet');
+      alert('Fejl: Mappebeskedcontainer ikke fundet');
     }
   } catch (error) {
     console.error(`Fejl ved hentning af ${folderName} beskeder:`, error);
-    alert(`Kunne ikke hente beskeder for ${folderName}: ` + error.message);
+    alert(`Kunde ikke hente beskeder for ${folderName}: ` + error.message);
   }
 }
 
@@ -521,7 +527,7 @@ async function deleteMessage(messageId, context) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    console.log('Delete message respons status:', response.status, response.statusText);
+    console.log('Slet besked respons status:', response.status, response.statusText);
     const rawResponse = await response.text();
     console.log('Rå respons:', rawResponse);
 
@@ -530,7 +536,7 @@ async function deleteMessage(messageId, context) {
       result = JSON.parse(rawResponse);
     } catch (jsonError) {
       console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-      throw new Error('Ugyldig JSON-respons fra serveren');
+      throw new Error('Ugyldig serverrespons');
     }
 
     if (!response.ok) {
@@ -568,7 +574,7 @@ async function moveMessage(messageId, folderName, context) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    console.log('Move message respons status:', response.status, response.statusText);
+    console.log('Flyt besked respons status:', response.status, response.statusText);
     const rawResponse = await response.text();
     console.log('Rå respons:', rawResponse);
 
@@ -577,7 +583,7 @@ async function moveMessage(messageId, folderName, context) {
       result = JSON.parse(rawResponse);
     } catch (jsonError) {
       console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
-      throw new Error('Ugyldig JSON-respons fra serveren');
+      throw new Error('Ugyldig serverrespons');
     }
 
     if (!response.ok) {
