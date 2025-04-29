@@ -8,11 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const messageForm = document.querySelector('#message-form');
   const folderForm = document.querySelector('#folder-form');
   const logoutButton = document.querySelector('#logout-button');
+  const deleteUserButton = document.querySelector('#delete-user-button');
   const loginSection = document.querySelector('#login-section');
   const appSection = document.querySelector('#app-section');
   const folderMessagesSection = document.querySelector('#folder-messages-section');
 
-  if (!loginForm || !registerForm || !messageForm || !folderForm || !logoutButton || !loginSection || !appSection || !folderMessagesSection) {
+  if (!loginForm || !registerForm || !messageForm || !folderForm || !logoutButton || !deleteUserButton || !loginSection || !appSection || !folderMessagesSection) {
     console.error('Et eller flere kritiske elementer mangler i DOM');
     return;
   }
@@ -125,6 +126,59 @@ document.addEventListener('DOMContentLoaded', () => {
     appSection.style.display = 'none';
     folderMessagesSection.style.display = 'none';
     console.log('Bruger logget ud');
+  });
+
+  // Fjern bruger
+  deleteUserButton.addEventListener('click', async () => {
+    if (!currentUserEmail) {
+      console.warn('Ingen bruger logget ind, kan ikke slette bruger');
+      alert('Log ind for at slette bruger');
+      return;
+    }
+
+    const confirmDelete = confirm('Er du sikker på, at du vil slette din bruger og alle tilknyttede mapper? Denne handling kan ikke fortrydes.');
+    if (!confirmDelete) {
+      console.log('Bruger annullerede sletning');
+      return;
+    }
+
+    try {
+      const response = await fetch('/functions/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'deleteUser',
+          email: currentUserEmail
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      console.log('Delete user respons status:', response.status, response.statusText);
+      const rawResponse = await response.text();
+      console.log('Rå respons:', rawResponse);
+
+      let result;
+      try {
+        result = JSON.parse(rawResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing fejl:', jsonError, 'Rå respons:', rawResponse);
+        throw new Error('Ugyldig JSON-respons fra serveren');
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || `Serverfejl: ${response.status}`);
+      }
+
+      console.log('Bruger slettet:', currentUserEmail);
+      currentUserEmail = null;
+      localStorage.removeItem('currentUserEmail');
+      loginSection.style.display = 'block';
+      appSection.style.display = 'none';
+      folderMessagesSection.style.display = 'none';
+      alert('Bruger og tilknyttede mapper er slettet.');
+    } catch (error) {
+      console.error('Fejl ved sletning af bruger:', error);
+      alert('Kunne ikke slette bruger: ' + error.message);
+    }
   });
 
   // Send besked

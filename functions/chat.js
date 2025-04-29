@@ -186,6 +186,50 @@ exports.handler = async (event, context) => {
           statusCode: 200,
           body: JSON.stringify({ success: true })
         };
+      } else if (body.action === 'deleteUser') {
+        const { email } = body;
+        if (!email) {
+          console.error('Missing email for deleteUser');
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: 'Manglende email' })
+          };
+        }
+
+        console.log('Deleting user:', email);
+        const session = client.startSession();
+        try {
+          await session.withTransaction(async () => {
+            // Slet bruger fra users
+            const userResult = await db.collection('users').deleteOne({ email }, { session });
+            if (userResult.deletedCount === 0) {
+              throw new Error('Bruger ikke fundet');
+            }
+
+            // Slet brugerens mapper fra folders
+            await db.collection('folders').deleteOne({ email }, { session });
+
+            // Slet alle beskeder, hvor brugeren er sender eller recipient
+            await db.collection('messages').deleteMany(
+              { $or: [{ sender: email }, { recipient: email }] },
+              { session }
+            );
+          });
+
+          console.log('User and associated data deleted:', email);
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ success: true })
+          };
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          return {
+            statusCode: error.message === 'Bruger ikke fundet' ? 404 : 500,
+            body: JSON.stringify({ error: error.message || 'Serverfejl' })
+          };
+        } finally {
+          await session.endSession();
+        }
       } else {
         const { sender, recipient, content } = body;
         if (!sender || !recipient || !content) {

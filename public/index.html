@@ -1,60 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="da">
 <head>
-    <title>AnoChat</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .section { margin-bottom: 20px; }
-        input, button, select { width: 100%; padding: 10px; margin: 5px 0; }
-        button { background-color: #2563eb; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #1e40af; }
-        ul { list-style: none; padding: 0; }
-        li { margin: 10px 0; }
-        a { color: #2563eb; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Krypteret Chat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100">
-    <div class="container">
-        <div id="login-section" class="section">
-            <h2 class="text-2xl font-bold mb-4">Login</h2>
-            <form id="login-form" class="space-y-4">
-                <input id="login-email" type="email" placeholder="Email" required class="border rounded">
-                <input id="login-password" type="password" placeholder="Password" required class="border rounded">
-                <button type="submit">Login</button>
-            </form>
-            <h2 class="text-2xl font-bold mt-6 mb-4">Register</h2>
-            <form id="register-form" class="space-y-4">
-                <input id="register-email" type="email" placeholder="Email" required class="border rounded">
-                <input id="register-password" type="password" placeholder="Password" required class="border rounded">
-                <button type="submit">Register</button>
-            </form>
+<body class="bg-gray-100 font-sans">
+  <div class="container mx-auto p-4">
+    <!-- Login og registrering sektion -->
+    <div id="login-section" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-bold mb-4">Login</h2>
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="login-email" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="login-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
         </div>
-        <div id="app-section" class="section" style="display: none;">
-            <button id="logout-button" class="mb-4">Logout</button>
-            <h2 class="text-2xl font-bold mb-4">Send Message</h2>
-            <form id="message-form" class="space-y-4">
-                <input id="message-content" type="text" placeholder="Message" required class="border rounded">
-                <input id="message-recipients" type="text" placeholder="Recipients (comma-separated)" required class="border rounded">
-                <input id="message-secret-key" type="text" placeholder="Secret Key" required class="border rounded">
-                <button type="submit">Send</button>
-            </form>
-            <h2 class="text-2xl font-bold mt-6 mb-4">Create Folder</h2>
-            <form id="folder-form" class="space-y-4">
-                <input id="folder-name" type="text" placeholder="Folder Name" required class="border rounded">
-                <button type="submit">Create</button>
-            </form>
-            <div id="folders" class="mt-6"></div>
-            <div id="messages" class="mt-6"></div>
+        <div>
+          <label for="login-password" class="block text-sm font-medium text-gray-700">Adgangskode</label>
+          <input type="password" id="login-password" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
         </div>
-        <div id="folder-messages-section" class="section" style="display: none;">
-            <button onclick="showApp()" class="mb-4">Back to App</button>
-            <div id="folder-messages" class="mt-6"></div>
+        <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Log ind</button>
+      </form>
+      <h2 class="text-2xl font-bold mt-8 mb-4">Registrer</h2>
+      <form id="register-form" class="space-y-4">
+        <div>
+          <label for="register-email" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="register-email" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
         </div>
+        <div>
+          <label for="register-password" class="block text-sm font-medium text-gray-700">Adgangskode</label>
+          <input type="password" id="register-password" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
+        </div>
+        <button type="submit" class="w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600">Registrer</button>
+      </form>
     </div>
-    <script src="index.js"></script>
+
+    <!-- App sektion (vises efter login) -->
+    <div id="app-section" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold">Krypteret Chat</h2>
+        <div>
+          <button id="logout-button" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 mr-2">Log ud</button>
+          <button id="delete-user-button" class="bg-red-700 text-white px-4 py-2 rounded-md hover:bg-red-800">Fjern bruger</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="text-xl font-bold mb-2">Send besked</h3>
+          <form id="message-form" class="space-y-4">
+            <div>
+              <label for="message-content" class="block text-sm font-medium text-gray-700">Besked</label>
+              <textarea id="message-content" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required></textarea>
+            </div>
+            <div>
+              <label for="message-recipients" class="block text-sm font-medium text-gray-700">Modtagere (kommasepareret)</label>
+              <input type="text" id="message-recipients" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
+            </div>
+            <div>
+              <label for="message-secret-key" class="block text-sm font-medium text-gray-700">Krypteringsnøgle</label>
+              <input type="text" id="message-secret-key" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
+            </div>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Send</button>
+          </form>
+          <h3 class="text-xl font-bold mt-8 mb-2">Opret folder</h3>
+          <form id="folder-form" class="space-y-4">
+            <div>
+              <label for="folder-name" class="block text-sm font-medium text-gray-700">Foldernavn</label>
+              <input type="text" id="folder-name" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
+            </div>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Opret</button>
+          </form>
+        </div>
+        <div>
+          <div id="folders"></div>
+          <div id="messages" class="mt-4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Folder beskeder sektion -->
+    <div id="folder-messages-section" class="hidden">
+      <button onclick="showApp()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 mb-4">Tilbage</button>
+      <div id="folder-messages"></div>
+    </div>
+  </div>
+  <script src="index.js"></script>
 </body>
 </html>
